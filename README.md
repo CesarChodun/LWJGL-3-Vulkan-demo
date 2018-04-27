@@ -1,2 +1,7 @@
 # JVEngine
-Java + Vulkan = rendering engine
+<h2>Goal</h2>
+<p>The aim of the project is to create simple <b>API</b>. Which would enable user to create <b>Vulkan</b> driven applications easier then using <b>Vulkan</b> alone.</p>
+<h2>Requirements</h2>
+<p><b>API</b> is written in <b>JAVA</b> and is using <b>LWJGL 3</b>.</p>
+<h2>Version 0.1.0</h2>
+<p>This version of <b>API</b>  is currently in alpha stage. So it is <b>NOT</b> suitable for <b>ANY</b> purposes beside <i><b>testing</b></i> and <b><i>internal use</i></b>.</p>
