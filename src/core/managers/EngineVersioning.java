@@ -20,8 +20,6 @@ public class EngineVersioning {
 	public static int appMajor = 0, appMinor = 1, appPatch = 0;
 	private static VkApplicationInfo appInfo = null;
 	
-	//TODO Store validation layers and VkInstance
-	
 	/**
 	 * <h5>Description:</h5>
 	 * <p>Initialize <code><b><i>VkApplicationInfo</i></b><code>.</p>
