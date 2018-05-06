@@ -3,10 +3,16 @@ package core.managers;
 import static org.lwjgl.system.MemoryUtil.*;
 import static org.lwjgl.vulkan.VK10.*;
 
+import java.nio.FloatBuffer;
 import java.nio.ByteBuffer;
 import java.nio.Buffer;
 
+import core.employees.PhysicalDevice;
+import core.employees.LogicalDevice;
+
+import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
+import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkApplicationInfo;
 import org.lwjgl.vulkan.VkInstance;
 import org.lwjgl.PointerBuffer;
@@ -16,6 +22,104 @@ import org.lwjgl.PointerBuffer;
  *
  */
 public class Util {
+	
+	public static ByteBuffer[] makeByteBuffers(String[] texts) {
+		ByteBuffer[] out = new ByteBuffer[texts.length];
+		
+		for(int i = 0; i < texts.length; i++)
+			out[i] = memUTF8(texts[i]);
+		
+		return out;
+	}
+	
+	public static PointerBuffer makePointer(ByteBuffer[] buffers) {
+		PointerBuffer pb = memAllocPointer(buffers.length);
+		
+		for(ByteBuffer b : buffers)
+			pb.put(b);
+		pb.flip();
+		
+		return pb;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>Creates <code><b><i>LogicalDevice</i></b></code> with given parameters.</p>
+	 * @param dev					- <b>Must</b> be a valid <code><b><i>PhysicalDevice</i></b></code>.
+	 * @param requiredQueueFlags	- Bitwise <b>OR</b> of required queue flags.
+	 * @param layers				- Layers to be enabled.
+	 * @param extensions			- Needed extensions.
+	 * @return	<p>Valid LogicalDevice.</p>
+	 * @see {@link core.employees.LogicalDevice}
+	 */
+	public static LogicalDevice createLogicalDevice(PhysicalDevice dev, int requiredQueueFlags, String[] layers, String[] extensions) {
+		ByteBuffer[] bLayers = makeByteBuffers(layers);
+		ByteBuffer[] bExtensions = makeByteBuffers(extensions);
+		PointerBuffer pExtensions = makePointer(bExtensions);
+		
+		LogicalDevice logicalDevice = createLogicalDevice(dev, requiredQueueFlags, bLayers, pExtensions);
+		
+		memFree(pExtensions);
+		
+		freeBuffers(bLayers);
+		freeBuffers(bExtensions);
+		
+		return logicalDevice;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>Creates <code><b><i>LogicalDevice</i></b></code> with given parameters.</p>
+	 * @param dev					- <b>Must</b> be a valid <code><b><i>PhysicalDevice</i></b></code>.
+	 * @param requiredQueueFlags	- Bitwise <b>OR</b> of required queue flags.
+	 * @param layers				- Layers to be enabled.
+	 * @param extensions			- Needed extensions.
+	 * @return	<p>Valid LogicalDevice.</p>
+	 * @see {@link core.employees.LogicalDevice}
+	 */
+	public static LogicalDevice createLogicalDevice(PhysicalDevice dev, int requiredQueueFlags, ByteBuffer[] layers, PointerBuffer extensions) {
+		LogicalDevice out = null;
+		
+		int desiredQueueIndex = dev.getNextQueueFamilyIndex(0, requiredQueueFlags);
+		
+		FloatBuffer queuePriorities = memAllocFloat(1).put(0.0f);
+		queuePriorities.flip();
+		
+		PointerBuffer ppEnabledLayerNames = makePointer(layers);
+
+		VkDeviceQueueCreateInfo.Buffer deviceQueueCreateInfo = VkDeviceQueueCreateInfo.calloc(1)
+				.sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
+				.pNext(NULL)
+				.queueFamilyIndex(desiredQueueIndex)
+				.pQueuePriorities(queuePriorities);
+		
+		VkDeviceCreateInfo deviceCreateInfo = VkDeviceCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.pQueueCreateInfos(deviceQueueCreateInfo)
+				.ppEnabledLayerNames(ppEnabledLayerNames)
+				.ppEnabledExtensionNames(extensions);
+		
+		PointerBuffer pdev = memAllocPointer(1);
+		int err = vkCreateDevice(dev, deviceCreateInfo, null, pdev);
+		if(err < 0)
+			throw new AssertionError("Failed to create logical device: " + translateVulkanError(err));
+		
+		long ldev = pdev.get(0);
+		out = new LogicalDevice(ldev, dev, deviceCreateInfo);
+		out.setGraphicsQueueFamilyIndex(desiredQueueIndex);
+
+		deviceCreateInfo.free();
+		deviceQueueCreateInfo.free();
+		
+		memFree(queuePriorities);
+		memFree(ppEnabledLayerNames);
+		
+		memFree(pdev);
+		
+		return out;
+	}
 	
 	/**
 	 * <h5>Description:</h5>
