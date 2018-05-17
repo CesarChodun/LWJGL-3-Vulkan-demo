@@ -2,14 +2,19 @@ package core.employees;
 
 import static org.lwjgl.system.MemoryUtil.*;
 import static org.lwjgl.vulkan.VK10.*;
+import static org.lwjgl.vulkan.KHRSurface.*;
 import static java.lang.Math.*;
 
 import java.nio.IntBuffer;
 
-import org.lwjgl.vulkan.VkInstance;
-import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceProperties;
 import org.lwjgl.vulkan.VkQueueFamilyProperties;
+
+import core.managers.Util;
+
+import org.lwjgl.vulkan.VkPhysicalDevice;
+import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
+import org.lwjgl.vulkan.VkInstance;
 
 /**
  *	<h5>Description: </h5>
@@ -22,6 +27,7 @@ public class PhysicalDevice extends VkPhysicalDevice{
 	
 	public VkPhysicalDeviceProperties properties;
 	public VkQueueFamilyProperties.Buffer queueFamilyProperties;
+	public VkPhysicalDeviceMemoryProperties memoryProperties;
 	public int queueFamilyCount;
 
 	/**
@@ -45,11 +51,14 @@ public class PhysicalDevice extends VkPhysicalDevice{
 	 * <h5>Description</h5>
 	 * 
 	 * <p>Function for acquiring queue family index which meets requirements(<code><i><b>VkQueueFlagBits</b></i></code>).</p>
-	 * 
+	 * <h4>Note:</h4>
+	 * <p>						If <code><b><i>requiredSupport</i></b></code> equals to <b>0</b> and <code><b><i>first</i></b></code> 
+	 * 							is less than <code><b><i>queueFamilyCount</i></b></code> 
+	 * 							next queue family will be returned.
+	 * </p>	
 	 * @param first 			- First interesting queue index. By default <b>0</b>.
 	 * @param requiredSupport 	- Required queue flag bits(<code><i><b>VkQueueFlagBits</b></i></code>). For example <code>VK_QUEUE_GRAPHICS_BIT</code>.<br>
-	 * 							If <code><b><i>requiredExtensions</i></b></code> equals to <b>0</b> and is less than <code><b><i>queueFamilyCount</i></b></code> 
-	 * 							next queue family will be returned.
+	 * 
 	 * @return	If queue family has been found, the index of such family is returned. Otherwise <b>-1</b> is returned.
 	 * @see {@link org.lwjgl.vulkan.VK10#VK_QUEUE_GRAPHICS_BIT}
 	 */
@@ -57,6 +66,34 @@ public class PhysicalDevice extends VkPhysicalDevice{
 		for(int i = max(0, first); i < queueFamilyCount; i++)
 			if((queueFamilyProperties.get(i).queueFlags() & requiredSupport) == requiredSupport)
 				return i;
+		return -1;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * 
+	 * <p>Returns the next queue family that supports given surface.</p>
+	 * 
+	 * @param first				- First interesting queue index.
+	 * @param requiredSupport	- Required queue flag bits(<code><i><b>VkQueueFlagBits</b></i></code>).
+	 * @param surface			- Surface handle for compatibility check.
+	 * @return					First queue family index that meets all requirements or -1 if no such queue exist.
+	 */
+	public int getNextQueueFamilyIndexKHR(int first, int requiredSupport, long surface) {
+		IntBuffer supportPresent = memAllocInt(1);
+		
+		for(int i = first; i < queueFamilyCount; i++) {
+			supportPresent.position(0);
+			
+			int err = vkGetPhysicalDeviceSurfaceSupportKHR(this, i, surface, supportPresent);
+			if(err != VK_SUCCESS)
+				throw new AssertionError("Failed to check physical device surface support " + Util.translateVulkanError(err));
+			
+			int at = supportPresent.get(0);
+			if((queueFamilyProperties.get(i).queueFlags() & requiredSupport) == requiredSupport && at == VK_TRUE)
+				return i;
+		}
+		
 		return -1;
 	}
 	
@@ -77,6 +114,9 @@ public class PhysicalDevice extends VkPhysicalDevice{
 		queueFamilyProperties = VkQueueFamilyProperties.calloc(queueFamilyCount);
 		vkGetPhysicalDeviceQueueFamilyProperties(this, queue_family_count_buffer, queueFamilyProperties);
 		memFree(queue_family_count_buffer);
+		
+		memoryProperties = VkPhysicalDeviceMemoryProperties.calloc();
+		vkGetPhysicalDeviceMemoryProperties(this, memoryProperties);
 	}
 	
 	/**
