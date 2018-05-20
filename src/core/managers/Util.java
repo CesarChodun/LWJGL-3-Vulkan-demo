@@ -4,6 +4,7 @@ import static org.lwjgl.system.MemoryUtil.*;
 import static org.lwjgl.vulkan.VK10.*;
 
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.nio.ByteBuffer;
 import java.nio.Buffer;
 
@@ -12,6 +13,7 @@ import core.employees.LogicalDevice;
 
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
+import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkApplicationInfo;
 import org.lwjgl.vulkan.VkInstance;
@@ -23,6 +25,11 @@ import org.lwjgl.PointerBuffer;
  */
 public class Util {
 	
+	/**
+	 * 
+	 * @param texts
+	 * @return
+	 */
 	public static ByteBuffer[] makeByteBuffers(String[] texts) {
 		ByteBuffer[] out = new ByteBuffer[texts.length];
 		
@@ -32,6 +39,12 @@ public class Util {
 		return out;
 	}
 	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>Creates a pointer buffer from given buffers.</p>
+	 * @param buffers	- Buffers to be converted into pointer buffer.
+	 * @return			- Pointer buffer that points to given buffers.
+	 */
 	public static PointerBuffer makePointer(ByteBuffer[] buffers) {
 		PointerBuffer pb = memAllocPointer(buffers.length);
 		
@@ -41,6 +54,38 @@ public class Util {
 		
 		return pb;
 	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>Frees contents of buffers.</p>
+	 * @param buffers	- Buffers to free.
+	 */
+	public static void freeBuffers(Buffer...buffers) {
+		for(Buffer bb : buffers)
+			memFree(bb);
+	}
+
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 			Returns memory type that meets requirements.
+	 * </p>
+	 * @param memoryProperties	- Memory properties.
+	 * @param bits				- Interesting indices.
+	 * @param properties		- Properties that memory type should meet.
+	 * @param typeIndex			- Integer buffer for returned value.
+	 * @return					- Information about successfulness of the operation(true - success, false - fail).
+	 */
+	 public static boolean getMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties, int bits, int properties, IntBuffer typeIndex) {
+		 for(int i = 0; i < 32; i++) 
+			 if((bits & (1<<i)) > 0)
+				 if((memoryProperties.memoryTypes(i).propertyFlags() & properties) == properties) {
+					 typeIndex.put(0, i);
+					 return true;
+				 }
+		 
+		 return false;
+	 }
 	
 	/**
 	 * <h5>Description:</h5>
@@ -163,16 +208,6 @@ public class Util {
 		memFree(ppEnabledLayerNames);
 		
 		return out;
-	}
-	
-	/**
-	 * <h5>Description:</h5>
-	 * <p>Frees contents of buffers.</p>
-	 * @param buffers	- Buffers to free.
-	 */
-	public static void freeBuffers(Buffer...buffers) {
-		for(Buffer bb : buffers)
-			memFree(bb);
 	}
 	
 	static final String[] errorMessages = {
