@@ -1,6 +1,7 @@
 package core.managers;
 
 import static org.lwjgl.system.MemoryUtil.*;
+import static org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR;
 import static org.lwjgl.vulkan.VK10.*;
 
 import java.nio.FloatBuffer;
@@ -9,11 +10,14 @@ import java.nio.ByteBuffer;
 import java.nio.Buffer;
 
 import core.employees.PhysicalDevice;
+import core.employees.ColorFormatAndSpace;
 import core.employees.LogicalDevice;
 
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
+import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
+import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkApplicationInfo;
 import org.lwjgl.vulkan.VkInstance;
@@ -85,6 +89,73 @@ public class Util {
 				 }
 		 
 		 return false;
+	 }
+	 
+	 /**
+	  *	<h5>Description:</h5>
+	  * <p>
+	  * 	Obtains available surface extensions.
+	  * </p>
+	  * @param physicalDevice	- Physical device to obtain properties from.
+	  * @param surface			- Surface handle.
+	  * @return					- Buffer with <b><i><code>VkSurfaceFormatKHR</code></i></b>.
+	  * @see 					{@link VkSurfaceFormatKHR}
+	  */
+	public static VkSurfaceFormatKHR.Buffer listSurfaceFormats(VkPhysicalDevice physicalDevice, long surface){
+		 IntBuffer pCount = memAllocInt(1);
+		 int err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pCount, null);
+		 if(err != VK_SUCCESS)
+			 throw new AssertionError("Failed to enumerate surface formats: " + Util.translateVulkanError(err));
+		 int count = pCount.get(0);
+		 
+		 VkSurfaceFormatKHR.Buffer out = VkSurfaceFormatKHR.calloc(count);
+		 err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pCount, out);
+		 memFree(pCount);
+		 if(err != VK_SUCCESS)
+			 throw new AssertionError("Failed to obtain surface formats: " + Util.translateVulkanError(err));
+		 
+		 return out;
+	 }
+	
+	/**
+	 * <h5>Description:</h5>
+	  * <p>
+	  * 	Obtains desired color space.
+	  * </p>
+	 * @param physicalDevice		- Physical device to obtain informations from.
+	 * @param surface				- Surface handle.
+	 * @param desiredColorFormat	- Most suitable color format.
+	 * @return						- Returns <b><i><code>ColorFormatAndSpace</code></i></b> that support <b>desiredColorFormat</b>
+	 * 								if possible. Or is the first available color format.
+	 */
+	public static ColorFormatAndSpace getColorFormatAndSpace(PhysicalDevice physicalDevice, long surface, int desiredColorFormat) { 
+
+		ColorFormatAndSpace out = null;
+
+		//Check for compatibility.
+		if(physicalDevice.getNextQueueFamilyIndex(0, VK_QUEUE_GRAPHICS_BIT) == -1)
+			throw new AssertionError("Could not find queue family that would support graphics operations.");
+		if(physicalDevice.getNextQueueFamilyIndexKHR(0, VK_QUEUE_GRAPHICS_BIT, surface) == -1)
+			throw new AssertionError("No presentation queue found");
+		
+		//Obtain available surface formats.
+		VkSurfaceFormatKHR.Buffer surfaceFormats = listSurfaceFormats(physicalDevice, surface);
+		int formatCount = surfaceFormats.capacity();
+		
+		//Try all available formats
+		for(int i = 0; i < formatCount; i++)
+			if(surfaceFormats.get(i).format() == desiredColorFormat) 
+				out = new ColorFormatAndSpace(surfaceFormats.get(i).format(), surfaceFormats.get(i).colorSpace());
+			 	
+		if(out == null)
+			out = new ColorFormatAndSpace(surfaceFormats.get(0).format(), surfaceFormats.get(0).colorSpace());
+		
+		if(out.colorFormat == VK_FORMAT_UNDEFINED)
+			out.colorFormat = desiredColorFormat;
+		
+		surfaceFormats.free();
+		
+		return out;
 	 }
 	
 	/**
