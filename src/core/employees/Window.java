@@ -11,7 +11,7 @@ import static org.lwjgl.glfw.GLFW.*;
  */
 public class Window {
 	
-	public static final int DEFAULT_WIDTH = 1920, DEFAULT_HEIGHT = 1080, DEFAULT_X_CORD = 0, DEFAULT_Y_CORD = 0;
+	public static final int DEFAULT_WIDTH = 800, DEFAULT_HEIGHT = 600, DEFAULT_X_CORD = 0, DEFAULT_Y_CORD = 0;
 	public static final String DEFAULT_NAME = "Window";
 
 	private int width, height, x, y;
@@ -57,7 +57,7 @@ public class Window {
 	 * 	@param width	- Width of the created window.
 	 * 	@param height	- Height of the created window. 
 	 */
-	public Window(int x, int y, int height, int width) {		
+	public Window(int x, int y, int width, int height) {		
 		this.x = x;
 		this.y = y;
 		this.height = height;
@@ -77,7 +77,7 @@ public class Window {
 	 * 	@param height	- Height of the created window. 
 	 * 	@param name		- Name of the window.
 	 */
-	public Window(int x, int y, int height, int width, String name) {		
+	public Window(int x, int y, int width, int height, String name) {		
 		this.x = x;
 		this.y = y;
 		this.height = height;
