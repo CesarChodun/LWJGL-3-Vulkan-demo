@@ -17,6 +17,7 @@ import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
 import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
+import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
 import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkApplicationInfo;
@@ -90,6 +91,24 @@ public class Util {
 		 
 		 return false;
 	 }
+	 
+	 /**
+	     * <h5>Description:</h5>
+		 * <p>
+		 * 		Obtains <b><i><code>VkSurfaceCapabilitiesKHR</code></i></b>.
+		 * </p>
+	     * @param physicalDevice 	- Valid physical device.
+	     * @param surface			- Valid surface.
+	     * @return					Surface capabilities.
+	     * @see {@link org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR}
+	     */
+	    public static VkSurfaceCapabilitiesKHR getSurfaceCapabilities(VkPhysicalDevice physicalDevice, long surface) {
+	    	VkSurfaceCapabilitiesKHR pSurfaceCapabilities = VkSurfaceCapabilitiesKHR.calloc();
+	    	int err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, pSurfaceCapabilities);
+	    	if(err != VK_SUCCESS)
+	    		throw new AssertionError("Failed to obtain surface capabilities: " + Util.translateVulkanError(err));
+	    	return pSurfaceCapabilities;
+	    }
 	 
 	 /**
 	  *	<h5>Description:</h5>
