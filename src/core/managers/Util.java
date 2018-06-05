@@ -1,7 +1,7 @@
 package core.managers;
 
 import static org.lwjgl.system.MemoryUtil.*;
-import static org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR;
+import static org.lwjgl.vulkan.KHRSurface.*;
 import static org.lwjgl.vulkan.VK10.*;
 
 import java.nio.FloatBuffer;
@@ -119,6 +119,42 @@ public class Util {
 	
 	/**
 	 * <h5>Description:</h5>
+	 * <p>
+	 * 	Obtains desired color format if possible.
+	 * </p>
+	 * 
+	 * @param physicalDevice		- Physical device to obtain informations from.
+	 * @param surface				- Surface handle.
+	 * @param first					- Index to start iterating from. Most likely <b>0</b>.
+	 * @param desiredFormat			- Most suitable color format.
+	 * @param desiredColorSpace		- Most suitable color space.
+	 * @return						- Returns <b><i><code>ColorFormatAndSpace</code></i></b> that support <b>desiredColorFormat</b>
+	 * 								if possible. Otherwise <b>null</b>.
+	 */
+	public static ColorFormatAndSpace getNextSurfaceFormat(PhysicalDevice physicalDevice, long surface, int first, int desiredFormat, int desiredColorSpace) {
+		VkSurfaceFormatKHR.Buffer formats = listSurfaceFormats(physicalDevice, surface);
+		ColorFormatAndSpace out = null;
+		int size = formats.remaining();
+		
+		if(size == 1 && formats.get(0).format() == VK_FORMAT_UNDEFINED)
+			return new ColorFormatAndSpace(desiredFormat, desiredColorSpace == -1 ? formats.get(0).colorSpace() : desiredColorSpace);
+		
+		for(int i = first; i < size; i++)
+			if(formats.get(i).format() == desiredFormat || desiredFormat == -1) {
+				out = new ColorFormatAndSpace(formats.get(i).format(), formats.get(i).colorSpace());
+				
+				if(formats.get(i).colorSpace() == desiredColorSpace || desiredColorSpace == -1)
+					break;
+			}
+		
+		formats.free();
+		
+		return out;
+	}
+	
+	@Deprecated
+	/**
+	 * <h5>Description:</h5>
 	  * <p>
 	  * 	Obtains desired color space.
 	  * </p>
@@ -130,30 +166,16 @@ public class Util {
 	 */
 	public static ColorFormatAndSpace getColorFormatAndSpace(PhysicalDevice physicalDevice, long surface, int desiredColorFormat) { 
 
-		ColorFormatAndSpace out = null;
-
 		//Check for compatibility.
 		if(physicalDevice.getNextQueueFamilyIndex(0, VK_QUEUE_GRAPHICS_BIT) == -1)
 			throw new AssertionError("Could not find queue family that would support graphics operations.");
 		if(physicalDevice.getNextQueueFamilyIndexKHR(0, VK_QUEUE_GRAPHICS_BIT, surface) == -1)
 			throw new AssertionError("No presentation queue found");
-		
-		//Obtain available surface formats.
-		VkSurfaceFormatKHR.Buffer surfaceFormats = listSurfaceFormats(physicalDevice, surface);
-		int formatCount = surfaceFormats.capacity();
-		
-		//Try all available formats
-		for(int i = 0; i < formatCount; i++)
-			if(surfaceFormats.get(i).format() == desiredColorFormat) 
-				out = new ColorFormatAndSpace(surfaceFormats.get(i).format(), surfaceFormats.get(i).colorSpace());
+
+		ColorFormatAndSpace out = getNextSurfaceFormat(physicalDevice, surface, 0, desiredColorFormat, -1);
 			 	
 		if(out == null)
-			out = new ColorFormatAndSpace(surfaceFormats.get(0).format(), surfaceFormats.get(0).colorSpace());
-		
-		if(out.colorFormat == VK_FORMAT_UNDEFINED)
-			out.colorFormat = desiredColorFormat;
-		
-		surfaceFormats.free();
+			out = getNextSurfaceFormat(physicalDevice, surface, 0, -1, -1);
 		
 		return out;
 	 }
