@@ -6,7 +6,12 @@ import static org.lwjgl.vulkan.VK10.*;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.LongBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.ByteBuffer;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.Buffer;
 
 import core.employees.PhysicalDevice;
@@ -17,10 +22,12 @@ import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
 import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
+import org.lwjgl.vulkan.VkShaderModuleCreateInfo;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
 import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkApplicationInfo;
+import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkInstance;
 import org.lwjgl.PointerBuffer;
 
@@ -197,6 +204,64 @@ public class Util {
 			out = getNextSurfaceFormat(physicalDevice, surface, 0, -1, -1);
 		
 		return out;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Converts file content to byte buffer.
+	 * </p>
+	 * @param file
+	 * @return
+	 */
+	public static ByteBuffer fileToByteBuffer(File file) {
+		 if(file.isDirectory())
+			 return null;
+		 
+		 ByteBuffer buffer = null;
+		 
+		 try {
+			 FileInputStream fis = new FileInputStream(file);
+			 FileChannel fc = fis.getChannel();
+			 buffer = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
+			 fc.close();
+			 fis.close();
+
+		 } catch (IOException e) {
+			 e.printStackTrace();
+		 }
+		 
+		 return buffer;
+	 }
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates a shader module.
+	 * </p>
+	 * @param logicalDevice
+	 * @param file
+	 * @return
+	 */
+	public static long createShaderModule(VkDevice logicalDevice, File file) {
+		ByteBuffer shaderData = fileToByteBuffer(file);
+	 
+		VkShaderModuleCreateInfo moduleCreateInfo  = VkShaderModuleCreateInfo.calloc()
+				 .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
+				 .flags(0)
+				 .pNext(NULL)
+				 .pCode(shaderData);
+		 
+		LongBuffer pShaderModule = memAllocLong(1);
+		int err = vkCreateShaderModule(logicalDevice, moduleCreateInfo, null, pShaderModule);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to create shader module: " + Util.translateVulkanError(err));
+		long handle = pShaderModule.get(0);
+		 
+		memFree(pShaderModule);
+		moduleCreateInfo.free();
+		
+		return handle;
 	 }
 	
 	/**
