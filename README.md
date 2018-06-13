@@ -5,3 +5,8 @@
 <p><b>Engine</b> is written in <b>JAVA</b> and is using <b>LWJGL 3</b>.</p>
 <h2>Version 0.1.0</h2>
 <p>This version of <b>engine</b>  is currently in alpha stage. So it is <b>NOT</b> suitable for <b>ANY</b> purposes beside <i><b>testing</b></i> and <b><i>internal use</i></b>.</p>
+<h2>Gallery</h2>
+
+![triangle_git](other_resources/triangle_git.jpg)
+
+![triangle_git](other_resources/quad_git.jpg)
