@@ -67,7 +67,6 @@ import core.employees.Window;
 import core.managers.EngineVersioning;
 import core.managers.HardwareManager;
 import core.managers.Util;
-import storage.StorageManager;
 
 /**
  * <h5>Description:</h5>
@@ -950,8 +949,6 @@ public class PrimitiveDemo {
 	}
 	
 	public static void main(String[] args) {
-
-		StorageManager.transferInfo();
 		init();
 		destroy();
 	}
