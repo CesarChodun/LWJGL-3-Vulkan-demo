@@ -22,11 +22,16 @@ import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
 import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
+import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo;
+import org.lwjgl.vulkan.VkQueue;
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
 import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkApplicationInfo;
+import org.lwjgl.vulkan.VkCommandBuffer;
+import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
+import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
 import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkInstance;
 import org.lwjgl.PointerBuffer;
@@ -218,7 +223,7 @@ public class Util {
 		 if(file.isDirectory())
 			 return null;
 		 
-		 ByteBuffer buffer = null;
+		 ByteBuffer buffer = null; 
 		 
 		 try {
 			 FileInputStream fis = new FileInputStream(file);
@@ -233,6 +238,89 @@ public class Util {
 		 
 		 return buffer;
 	 }
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Obtains queue from logical device.
+	 * </p>
+	 * @param device
+	 * @param queueFamilyIndex
+	 * @param queueIndex		- If only queue family capabilities are considered queue index should equal <b>0</b>.
+	 * @return
+	 */
+	public static VkQueue getDeviceQueue(VkDevice device, int queueFamilyIndex, int queueIndex) {
+		PointerBuffer pQueue = memAllocPointer(1);
+		vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
+		long queueHandle = pQueue.get(0);
+		memFree(pQueue);
+		return new VkQueue(queueHandle, device);
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates c0mmand buffers.
+	 * </p>
+	 * @param device
+	 * @param commandPool
+	 * @param level			- See <b>VkCommandPoolCreateFlags</b>
+	 * @param count
+	 * @return				- Array of command buffers. With size equal to <b><i>count</i></b>.
+	 */
+	public static VkCommandBuffer[] createCommandBuffers(VkDevice device, long commandPool, int level, int count) {
+		VkCommandBufferAllocateInfo cmdAlloc = VkCommandBufferAllocateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
+				.pNext(NULL)
+				.level(level)
+				.commandPool(commandPool)
+				.commandBufferCount(count);
+		
+		PointerBuffer pCommandBuffers = memAllocPointer(count);
+		
+		int err = vkAllocateCommandBuffers(device, cmdAlloc, pCommandBuffers);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to allocate command buffers: " + Util.translateVulkanError(err));
+		
+		VkCommandBuffer[] buffers = new VkCommandBuffer[count];
+		for(int i = 0; i < count; i++)
+			buffers[i] = new VkCommandBuffer(pCommandBuffers.get(i), device);
+		
+		memFree(pCommandBuffers);
+		cmdAlloc.free();
+		
+		return buffers;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates new command pool.
+	 * </p>
+	 * @param device
+	 * @param queueFamilyIndex
+	 * @param flags
+	 * @return					- Pipeline handle.
+	 */
+	public static long createCommandPool(VkDevice device, int queueFamilyIndex, int flags) {
+		VkCommandPoolCreateInfo createInfo = VkCommandPoolCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
+				.pNext(NULL)
+				.flags(flags)
+				.queueFamilyIndex(queueFamilyIndex);
+		
+		LongBuffer pCommandPool = memAllocLong(1);
+		int err = vkCreateCommandPool(device, createInfo, null, pCommandPool);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to create command pool: " + Util.translateVulkanError(err));
+		
+		long out = pCommandPool.get(0);
+		
+		memFree(pCommandPool);
+		createInfo.clear();
+		
+		return out;
+	}
 	
 	/**
 	 * <h5>Description:</h5>
@@ -262,6 +350,26 @@ public class Util {
 		moduleCreateInfo.free();
 		
 		return handle;
+	 }
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates shader stage.
+	 * </p>
+	 * @param shaderModule	- Shader module.
+	 * @param stage			- Shader stage.
+	 * @param invokeName	- Name of the method to be invoked.
+	 * @return
+	 */
+	public static VkPipelineShaderStageCreateInfo createShaderStage(long shaderModule, int stage, String invokeName) {
+		 VkPipelineShaderStageCreateInfo shaderStage = VkPipelineShaderStageCreateInfo.calloc()
+				 .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
+				 .pNext(NULL)
+				 .stage(stage)
+				 .module(shaderModule)
+				 .pName(memUTF8(invokeName));
+		 return shaderStage;
 	 }
 	
 	/**

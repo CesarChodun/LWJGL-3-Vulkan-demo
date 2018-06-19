@@ -21,7 +21,6 @@ import org.lwjgl.vulkan.VkClearValue;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
 import org.lwjgl.vulkan.VkCommandBufferBeginInfo;
-import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
 import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkFramebufferCreateInfo;
 import org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo;
@@ -88,7 +87,7 @@ public class PrimitiveDemo {
 	static int width = 800;
 	static int height = 600;
 	
-	static boolean quad = true;
+	static boolean quad = false;
 	
 	static final float rb = 0.9f, gb = 0.9f, bb = 0.9f;
 	 
@@ -223,7 +222,7 @@ public class PrimitiveDemo {
 		 // Describes blend modes and color masks
 		 VkPipelineColorBlendAttachmentState.Buffer colorWriteMask = VkPipelineColorBlendAttachmentState.calloc(1)
 				 .blendEnable(false)
-				 .colorWriteMask(0xF); //TODO check that shit
+				 .colorWriteMask(0xF);
 		 VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = VkPipelineColorBlendStateCreateInfo.calloc()
 				 .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
 				 .pAttachments(colorWriteMask);
@@ -322,56 +321,7 @@ public class PrimitiveDemo {
 		 return pipelineHandle;
 	 }
 	 
-	//Util:
-		public static long createComandPool(VkDevice logicalDevice, int queueIndex) {
-			
-			VkCommandPoolCreateInfo pCreateInfo = VkCommandPoolCreateInfo.calloc()
-						.sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
-						.pNext(NULL)
-						.queueFamilyIndex(queueIndex)
-						.flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-			
-			LongBuffer pCommandPool = memAllocLong(1);
-			int err = vkCreateCommandPool(logicalDevice, pCreateInfo, null, pCommandPool);
-			if(err != VK_SUCCESS)
-				throw new AssertionError("Failed to create command pool: " + Util.translateVulkanError(err));
-			
-			long handle = pCommandPool.get(0);
-			pCreateInfo.free();
-			memFree(pCommandPool);
-			
-			return handle;
-		}
-		
-		public static VkCommandBuffer createCommandBuffer(VkDevice logicalDevice, long commandPool) {
-			VkCommandBufferAllocateInfo cmdInfo = VkCommandBufferAllocateInfo.calloc()
-					.sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
-					.pNext(NULL)
-					.commandPool(commandPool)
-					.level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-					.commandBufferCount(1);
-			
-			PointerBuffer pCommandBuffer = memAllocPointer(1);
-			int err = vkAllocateCommandBuffers(logicalDevice, cmdInfo, pCommandBuffer);
-			if(err != VK_SUCCESS)
-				throw new AssertionError("Failed to allocate command buffer: " + Util.translateVulkanError(err));
-			
-			long handle = pCommandBuffer.get(0);
-			cmdInfo.free();
-			memFree(pCommandBuffer);
-			
-			
-			return new VkCommandBuffer(handle, logicalDevice);
-		}
-		
-		public static VkQueue createDeviceQueue(VkDevice logicalDevice, int queueFamilyIndex) {
-			PointerBuffer pQueue = memAllocPointer(1);
-			vkGetDeviceQueue(logicalDevice, queueFamilyIndex, 0, pQueue);
-			long queue = pQueue.get(0);
-			memFree(pQueue);
-			return new VkQueue(queue, logicalDevice);
-		}
-		
+	//Util:		
 		public static long createRenderPass(VkDevice logicalDevice, int colorFormat) {
 			VkAttachmentDescription.Buffer attachments = VkAttachmentDescription.calloc(1)
 					.format(colorFormat)
@@ -768,7 +718,7 @@ public class PrimitiveDemo {
 		
 		initGLFW();
 		
-		EngineVersioning.initResources("Triangle Demo", 1, 0, 1);
+		EngineVersioning.initResources("Triangle Demo", 1, 0, 2);
 		HardwareManager.initialize();
 		HardwareManager.createDefaultInstance();
 		HardwareManager.enumeratePhysicalDevices();
@@ -788,7 +738,7 @@ public class PrimitiveDemo {
 		logicalDevice = Util.createLogicalDevice(physicalDevice, VK_QUEUE_GRAPHICS_BIT, validationLayers, extensions);
 		
 		
-		window = new Window(0, 0, width, height, "Hello Triangle");
+		window = new Window(0, 0, width, height, "Hello triangle!");
 		
 		
 		GLFWKeyCallback exitCall = new GLFWKeyCallback() {
@@ -815,12 +765,13 @@ public class PrimitiveDemo {
 			tFormat = Util.getNextSurfaceFormat(physicalDevice, surface, 0, -1, -1);
 		final ColorFormatAndSpace format = tFormat;
 		
-		final long commandPool = createComandPool(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex());
-		VkCommandBuffer setupCommandBuffer = createCommandBuffer(logicalDevice, commandPool);
-		VkCommandBuffer postPresentCommandBuffer = createCommandBuffer(logicalDevice, commandPool);
-		VkQueue queue = createDeviceQueue(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex());
+		final long commandPool = Util.createCommandPool(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+		VkCommandBuffer[] buffers = Util.createCommandBuffers(logicalDevice, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 2);
+		VkCommandBuffer setupCommandBuffer = buffers[0];
+		VkCommandBuffer postPresentCommandBuffer = buffers[1];
+		VkQueue queue = Util.getDeviceQueue(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex(), 0);
 		long renderPass = createRenderPass(logicalDevice, format.colorFormat);
-		long renderCommandPool = createComandPool(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex());
+		long renderCommandPool = Util.createCommandPool(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 		Vertices vertices = createVertices(physicalDevice.memoryProperties, logicalDevice);
 		final long pipeline = createPipeline(logicalDevice, renderPass, vertices.createInfo);
         
@@ -864,8 +815,11 @@ public class PrimitiveDemo {
 		
         FPSCounter counter = new FPSCounter(1);
         int off = 0;
-		
+        
+        
+        
 		while(!glfwWindowShouldClose(window.getWindowID())) {
+			
             // Handle window messages. Resize events happen exactly here.
             // So it is safe to use the new swapchain images and framebuffers afterwards.
 			glfwPollEvents();
@@ -897,12 +851,11 @@ public class PrimitiveDemo {
 			currentBuffer = pImageIndex.get(0);
 			if(err != VK_SUCCESS)
 				throw new AssertionError("Failed to acquire next swapchain image: " + Util.translateVulkanError(err));
-
+			
             // Select the command buffer for the current framebuffer image/attachment
 			pCommandBuffers.put(0, renderCommandBuffers[currentBuffer]);
 			
-			// Submit to the graphics queue
-			err = vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE);
+			err = vkQueueSubmit(queue, submitInfo, NULL);//NULL_HANDLE
 			if(err != VK_SUCCESS)
 				throw new AssertionError("Failed to submit render queue: " + Util.translateVulkanError(err));
 			
@@ -915,11 +868,12 @@ public class PrimitiveDemo {
 			
             // Create and submit post present barrier
 			vkQueueWaitIdle(queue);
-			
+
 			vkDestroySemaphore(logicalDevice, pImageAcquiredSemaphore.get(0), null);
 			vkDestroySemaphore(logicalDevice, pRenderCompleteSemaphore.get(0), null);
 			submitPostPresentBarrier(swapchain.images[currentBuffer], postPresentCommandBuffer, queue);
 		}		
+		
 		
 		vkDeviceWaitIdle(logicalDevice);
 		
