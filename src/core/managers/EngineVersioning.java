@@ -13,12 +13,14 @@ import org.lwjgl.vulkan.VkApplicationInfo;
 public class EngineVersioning {
 
 	public static final int API_MAJOR = 1, API_MINOR = 0, API_PATCH = 2;
-	public static final int ENGINE_MAJOR = 0, ENGINE_MINOR = 1, ENGINE_PATCH = 0;
+	public static final int ENGINE_MAJOR = 0, ENGINE_MINOR = 1, ENGINE_PATCH = 3;
 	public static final String ENGINE_NAME = "JVEngine";
 	
 	public static String AppName = "Application";
 	public static int appMajor = 0, appMinor = 1, appPatch = 0;
 	private static VkApplicationInfo appInfo = null;
+	
+	//TODO Store validation layers and VkInstance
 	
 	/**
 	 * <h5>Description:</h5>

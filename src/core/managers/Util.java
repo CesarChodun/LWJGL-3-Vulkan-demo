@@ -25,6 +25,7 @@ import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo;
 import org.lwjgl.vulkan.VkQueue;
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo;
+import org.lwjgl.vulkan.VkSubmitInfo;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
 import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
@@ -147,6 +148,37 @@ public class Util {
 		 
 		 return out;
 	 }
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Submits command buffers.
+	 * </p>
+	 * @param queue
+	 * @param fence
+	 * @param commandBuffers
+	 */
+	public static void submitCommandBuffers(VkQueue queue, long fence, VkCommandBuffer... commandBuffers) {
+		
+		PointerBuffer pCommandBuffers = memAllocPointer(commandBuffers.length);
+		for(int i = 0; i < commandBuffers.length; i++) {
+			if(commandBuffers == null || commandBuffers[i].address() == NULL)
+				throw new AssertionError("Command buffer is corrupted.");
+			pCommandBuffers.put(commandBuffers[i]);
+		}
+		pCommandBuffers.flip(); //TODO: Fliping the buffer strongly affects performance(~9% in Primitive demo example).
+		
+		VkSubmitInfo pSubmitInfo = VkSubmitInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+				.pCommandBuffers(pCommandBuffers);
+		
+		int err = vkQueueSubmit(queue, pSubmitInfo, fence);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to submit command buffers(" + commandBuffers.length + "): " + Util.translateVulkanError(err));
+		
+		memFree(pCommandBuffers);
+		pSubmitInfo.free();
+	}
 	
 	/**
 	 * <h5>Description:</h5>

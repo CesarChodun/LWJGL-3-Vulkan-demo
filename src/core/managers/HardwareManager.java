@@ -92,6 +92,17 @@ public class HardwareManager {
 	
 	/**
 	 * <h5>Description:</h5>
+	  * <p>
+	  * 	Destroys instance.
+	  * </p>
+	 */
+	public static void destroyInstance() {
+		if(instance != null)
+			vkDestroyInstance(instance, null);
+	}
+	
+	/**
+	 * <h5>Description:</h5>
 	 * <p>Creates custom VkInstance.</p>
 	 * @param appInfo			- VkApplicationInfo.
 	 * @param validationLayers	- Validation layers that should be enabled.
