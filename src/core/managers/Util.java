@@ -35,6 +35,7 @@ import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
 import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
 import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkInstance;
+import org.eclipse.jdt.annotation.Nullable;
 import org.lwjgl.PointerBuffer;
 
 /**
@@ -194,7 +195,7 @@ public class Util {
 	 * @return						- Returns <b><i><code>ColorFormatAndSpace</code></i></b> that support <b>desiredColorFormat</b>
 	 * 								if possible. Otherwise <b>null</b>.
 	 */
-	public static ColorFormatAndSpace getNextSurfaceFormat(PhysicalDevice physicalDevice, long surface, int first, int desiredFormat, int desiredColorSpace) {
+	public static ColorFormatAndSpace getNextColorFormatAndSpace(int first, PhysicalDevice physicalDevice, long surface, int desiredFormat, int desiredColorSpace) {
 		VkSurfaceFormatKHR.Buffer formats = listSurfaceFormats(physicalDevice, surface);
 		ColorFormatAndSpace out = null;
 		int size = formats.remaining();
@@ -235,10 +236,10 @@ public class Util {
 		if(physicalDevice.getNextQueueFamilyIndexKHR(0, VK_QUEUE_GRAPHICS_BIT, surface) == -1)
 			throw new AssertionError("No presentation queue found");
 
-		ColorFormatAndSpace out = getNextSurfaceFormat(physicalDevice, surface, 0, desiredColorFormat, -1);
+		ColorFormatAndSpace out = getNextColorFormatAndSpace(0, physicalDevice, surface, desiredColorFormat, -1);
 			 	
 		if(out == null)
-			out = getNextSurfaceFormat(physicalDevice, surface, 0, -1, -1);
+			out = getNextColorFormatAndSpace(0, physicalDevice, surface, -1, -1);
 		
 		return out;
 	}
@@ -414,6 +415,7 @@ public class Util {
 	 * @return	<p>Valid LogicalDevice.</p>
 	 * @see {@link core.employees.LogicalDevice}
 	 */
+	@Deprecated
 	public static LogicalDevice createLogicalDevice(PhysicalDevice dev, int requiredQueueFlags, String[] layers, String[] extensions) {
 		ByteBuffer[] bLayers = makeByteBuffers(layers);
 		ByteBuffer[] bExtensions = makeByteBuffers(extensions);
@@ -439,10 +441,12 @@ public class Util {
 	 * @return	<p>Valid LogicalDevice.</p>
 	 * @see {@link core.employees.LogicalDevice}
 	 */
+	@Deprecated
 	public static LogicalDevice createLogicalDevice(PhysicalDevice dev, int requiredQueueFlags, ByteBuffer[] layers, PointerBuffer extensions) {
 		LogicalDevice out = null;
 		
 		int desiredQueueIndex = dev.getNextQueueFamilyIndex(0, requiredQueueFlags);
+		System.out.println("Queue: " + desiredQueueIndex);
 		
 		FloatBuffer queuePriorities = memAllocFloat(1).put(0.0f);
 		queuePriorities.flip();
@@ -470,7 +474,56 @@ public class Util {
 		
 		long ldev = pdev.get(0);
 		out = new LogicalDevice(ldev, dev, deviceCreateInfo);
-		out.setGraphicsQueueFamilyIndex(desiredQueueIndex);
+		out.setQueueFamilyIndex(desiredQueueIndex);
+
+		deviceCreateInfo.free();
+		deviceQueueCreateInfo.free();
+		
+		memFree(queuePriorities);
+		memFree(ppEnabledLayerNames);
+		
+		memFree(pdev);
+		
+		return out;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>Creates <code><b><i>LogicalDevice</i></b></code> with given parameters.</p>
+	 * @param dev					- <b>Must</b> be a valid <code><b><i>PhysicalDevice</i></b></code>.
+	 * @param requiredQueueFlags	- Bitwise <b>OR</b> of required queue flags.
+	 * @param layers				- Layers to be enabled.
+	 * @param extensions			- Needed extensions.
+	 * @return	<p>Valid LogicalDevice.</p>
+	 * @see {@link core.employees.LogicalDevice}
+	 */
+	public static LogicalDevice createLogicalDevice(PhysicalDevice dev, int queueFamilyIndex, FloatBuffer queuePriorities, int flags, @Nullable ByteBuffer[] layers, @Nullable PointerBuffer extensions) {
+		LogicalDevice out = null;
+		
+		PointerBuffer ppEnabledLayerNames = (layers == null) ? null : makePointer(layers);
+		
+		VkDeviceQueueCreateInfo.Buffer deviceQueueCreateInfo = VkDeviceQueueCreateInfo.calloc(1)
+				.sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
+				.pNext(NULL)
+				.queueFamilyIndex(queueFamilyIndex)
+				.pQueuePriorities(queuePriorities);
+		
+		VkDeviceCreateInfo deviceCreateInfo = VkDeviceCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(flags)
+				.pQueueCreateInfos(deviceQueueCreateInfo)
+				.ppEnabledLayerNames(ppEnabledLayerNames)
+				.ppEnabledExtensionNames(extensions);
+		
+		PointerBuffer pdev = memAllocPointer(1);
+		int err = vkCreateDevice(dev, deviceCreateInfo, null, pdev);
+		if(err < 0)
+			throw new AssertionError("Failed to create logical device: " + translateVulkanError(err));
+		
+		long ldev = pdev.get(0);
+		out = new LogicalDevice(ldev, dev, deviceCreateInfo);
+		out.setQueueFamilyIndex(queueFamilyIndex);
 
 		deviceCreateInfo.free();
 		deviceQueueCreateInfo.free();
@@ -561,6 +614,8 @@ public class Util {
 		if(err >= 0)
 			return errorMessages[err];
 		//Error codes:
+		if(err <= 1000000)
+			return "Error code: " + err;
 		return errorMessages[5 - err];
 	}
 }

@@ -50,6 +50,43 @@ public class Window {
 	
 	/**
 	 * 	<h5>Description:</h5>
+	 * 	<p>Create window with custom name and dimensions.</p>
+	 * 
+	 * 	@param width	- Width of the created window.
+	 * 	@param height	- Height of the created window. 
+	 * 	@param name		- Name of the window.
+	 */
+	public Window(String name, int width, int height) {
+		this.height = height;
+		this.width = width;
+		
+		this.name = name;
+		createWindow();
+	}
+	
+	/**
+	 * 	<h5>Description:</h5>
+	 * 	<p>Create window with custom name and dimensions.</p>
+	 * 
+	 * 	@param x  		- Horizontal distance between top left monitor corner and top left window corner.
+	 * 	@param y 		- Vertical distance between top left monitor corner and top left window corner.
+	 * 	@param width	- Width of the created window.
+	 * 	@param height	- Height of the created window. 
+	 * 	@param name		- Name of the window.
+	 */
+	public Window(String name, int x, int y, int width, int height) {		
+		this.x = x;
+		this.y = y;
+		this.height = height;
+		this.width = width;
+		
+		this.name = name;
+		createWindow();
+	}
+	
+	@Deprecated
+	/**
+	 * 	<h5>Description:</h5>
 	 * 	<p>Create window with custom dimensions.</p>
 	 * 
 	 * 	@param x  		- Horizontal distance between top left monitor corner and top left window corner.
@@ -67,6 +104,7 @@ public class Window {
 		createWindow();
 	}
 	
+	@Deprecated
 	/**
 	 * 	<h5>Description:</h5>
 	 * 	<p>Create window with custom name and dimensions.</p>

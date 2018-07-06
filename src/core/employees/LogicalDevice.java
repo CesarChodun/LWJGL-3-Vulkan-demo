@@ -12,16 +12,25 @@ import org.lwjgl.vulkan.VkDevice;
  */
 public class LogicalDevice extends VkDevice{
 	
-	private int graphicsQueueFamilyIndex;
+	private int queueFamilyIndex;
 
 	public LogicalDevice(long handle, VkPhysicalDevice physicalDevice, VkDeviceCreateInfo ci) {
 		super(handle, physicalDevice, ci);
 	}
 	
+	@Deprecated
 	public int getGraphicsQueueFamilyIndex() {
-		return graphicsQueueFamilyIndex;
+		return queueFamilyIndex;
 	}
+	@Deprecated
 	public void setGraphicsQueueFamilyIndex(int graphicsQueueFamilyIndex) {
-		this.graphicsQueueFamilyIndex = graphicsQueueFamilyIndex;
+		this.queueFamilyIndex = graphicsQueueFamilyIndex;
+	}
+	
+	public int getQueueFamilyIndex() {
+		return queueFamilyIndex;
+	}
+	public void setQueueFamilyIndex(int queueFamilyIndex) {
+		this.queueFamilyIndex = queueFamilyIndex;
 	}
 }

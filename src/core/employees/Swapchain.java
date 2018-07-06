@@ -10,6 +10,7 @@ import java.nio.LongBuffer;
 
 import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkExtent2D;
+import org.lwjgl.vulkan.VkFramebufferCreateInfo;
 import org.lwjgl.vulkan.VkImageViewCreateInfo;
 import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
@@ -30,6 +31,8 @@ public class Swapchain {
     
     private int width, height;
     private ColorFormatAndSpace colorFormatAndSpace;
+    
+    
     
     
     /**
@@ -128,7 +131,7 @@ public class Swapchain {
      * @param presentModeHierarchy
      * @param colorFormatAndSpace
      */
-    public void recreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, long surface, int width, int height, int[] presentModeHierarchy, ColorFormatAndSpace colorFormatAndSpace) {
+    public void recreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, long surface, int width, int height, int[] presentModeHierarchy, ColorFormatAndSpace colorFormatAndSpace, int graphicsQueueFamilyIndex, int presentQueueFamilyIndex) {
     	this.width = width;
     	this.height = height;
     	this.colorFormatAndSpace = colorFormatAndSpace;
@@ -178,6 +181,15 @@ public class Swapchain {
     			.clipped(true)
     			.compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
     			.imageExtent(extent);
+    	if(graphicsQueueFamilyIndex != presentQueueFamilyIndex) {//TODO: Check if valid
+    		IntBuffer buf = memAllocInt(2);
+    		buf.put(graphicsQueueFamilyIndex);
+    		buf.put(presentQueueFamilyIndex);
+    		buf.flip();
+    		createInfo.pQueueFamilyIndices(buf);
+    		createInfo.imageSharingMode(VK_SHARING_MODE_CONCURRENT);
+    		memFree(buf);
+    	}
     			
     	LongBuffer pSwapchain = memAllocLong(1);
     	int err = vkCreateSwapchainKHR(device, createInfo, null, pSwapchain);

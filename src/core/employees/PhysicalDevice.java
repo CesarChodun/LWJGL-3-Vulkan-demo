@@ -43,8 +43,6 @@ public class PhysicalDevice extends VkPhysicalDevice{
 	 */
 	public PhysicalDevice(long handle, VkInstance instance) {
 		super(handle, instance);
-		
-		acquireProperties(instance);
 	}
 	
 	/**
@@ -79,7 +77,7 @@ public class PhysicalDevice extends VkPhysicalDevice{
 	 * @param surface			- Surface handle for compatibility check.
 	 * @return					First queue family index that meets all requirements or -1 if no such queue exist.
 	 */
-	public int getNextQueueFamilyIndexKHR(int first, int requiredSupport, long surface) {
+	public int getNextPresentQueueFamilyIndex(int first, int requiredFlags, long surface) {
 		IntBuffer supportPresent = memAllocInt(1);
 		
 		for(int i = first; i < queueFamilyCount; i++) {
@@ -90,11 +88,26 @@ public class PhysicalDevice extends VkPhysicalDevice{
 				throw new AssertionError("Failed to check physical device surface support " + Util.translateVulkanError(err));
 			
 			int at = supportPresent.get(0);
-			if((queueFamilyProperties.get(i).queueFlags() & requiredSupport) == requiredSupport && at == VK_TRUE)
+			if((queueFamilyProperties.get(i).queueFlags() & requiredFlags) == requiredFlags && at == VK_TRUE)
 				return i;
 		}
 		
 		return -1;
+	}
+	
+	@Deprecated
+	/**
+	 * <h5>Description:</h5>
+	 * 
+	 * <p>Returns the next queue family that supports given surface.</p>
+	 * 
+	 * @param first				- First interesting queue index.
+	 * @param requiredSupport	- Required queue flag bits(<code><i><b>VkQueueFlagBits</b></i></code>).
+	 * @param surface			- Surface handle for compatibility check.
+	 * @return					First queue family index that meets all requirements or -1 if no such queue exist.
+	 */
+	public int getNextQueueFamilyIndexKHR(int first, int requiredSupport, long surface) {
+		return getNextPresentQueueFamilyIndex(first, requiredSupport, surface);
 	}
 	
 	/**
@@ -103,7 +116,7 @@ public class PhysicalDevice extends VkPhysicalDevice{
 	 * @param instance - <b>Must</b> be a valid <code>VkInstance</code>.
 	 * @see {@link org.lwjgl.vulkan.VkInstance}
 	 */
-	protected void acquireProperties(VkInstance instance) {
+	public void acquireProperties(VkInstance instance) {
 		properties = VkPhysicalDeviceProperties.calloc();
 		vkGetPhysicalDeviceProperties(this, properties);
 		
@@ -124,11 +137,13 @@ public class PhysicalDevice extends VkPhysicalDevice{
 	 * <p>Frees information acquired by <code>PhysicalDevice</code> but leaves <code>VkPhysicalDevice</code> intact.</p>
 	 * @see {@link org.lwjgl.vulkan.VkPhysicalDevice}
 	 */
-	protected void freeProperties() {
+	public void freeProperties() {
 		queueFamilyProperties.free();
 		properties.free();
+		memoryProperties.free();
 	}
 	
+	@Deprecated
 	/**
 	 * <h5>Description</h5>
 	 * <p>Frees information acquired by <code><b><i>PhysicalDevice</i></b></code>.</p>

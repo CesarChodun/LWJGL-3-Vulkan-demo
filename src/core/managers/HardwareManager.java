@@ -13,6 +13,8 @@ import org.lwjgl.vulkan.VkApplicationInfo;
 import org.lwjgl.vulkan.VkInstance;
 
 import core.employees.PhysicalDevice;
+import utilities.managers.Evaluator;
+import utilities.managers.Evaluator.Judge;
 
 import org.lwjgl.PointerBuffer;
 
@@ -72,22 +74,49 @@ public class HardwareManager {
 	}
 	
 	/**
+	 * Obtains best available physical device.
+	 * @param judge
+	 * @return
+	 */
+	public static PhysicalDevice chosePhysicalDevice(Judge<PhysicalDevice> judge) {
+		
+		if(devices.length == 0)
+			throw new AssertionError("No physical devices were detected. Possible solution: invoke enumaratePhysicalDevices() first.");
+		
+		Evaluator<PhysicalDevice> eval = new Evaluator<PhysicalDevice>(judge, null);
+		
+		for(int i = 0; i < devices.length; i++) {
+			devices[i].acquireProperties(instance);
+			eval.addNew(devices[i]);
+			devices[i].freeProperties();
+		}
+		
+		PhysicalDevice pdev = eval.getBest();
+		eval.clear();
+		
+		return pdev;
+	}
+	
+	/**
 	 * <h5>Description:</h5>
 	 * <p>Creates default VkInstance.</p>
 	 * @see {@link org.lwjgl.vulkan.VkInstance}
 	 */
-	public static void createDefaultInstance() {		
+	public static void createDefaultInstance() {	
+		if(EngineVersioning.getAppInfo() == null)
+			throw new AssertionError("Application info must be initialized before nstance creation.");
 		createCustomInstance(EngineVersioning.getAppInfo(), DEFAULT_VALIDATION_LAYERS, DEFAULT_EXTENSIONS);
 	}
 	
+	@Deprecated
 	/**
 	 * <h5>Description:</h5>
 	 * <p>Destroys properties contained by <b><i>PhysicalDevice</i></b>(for every physical device acquired before).</p>
 	 * @see {@link core.employees.PhysicalDevice}
 	 */
-	public static void destroyPhysicalDevicesProperties() {
+	public static void freePhysicalDevicesProperties() {
 		for(int i = 0; i < devices.length; i++)
-			devices[i].destroyProperties();
+			devices[i].freeProperties();		
 	}
 	
 	/**
