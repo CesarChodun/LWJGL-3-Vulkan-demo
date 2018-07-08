@@ -20,6 +20,8 @@ import core.employees.LogicalDevice;
 
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
+import org.lwjgl.vulkan.VkMemoryAllocateInfo;
+import org.lwjgl.vulkan.VkMemoryRequirements;
 import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo;
@@ -29,6 +31,7 @@ import org.lwjgl.vulkan.VkSubmitInfo;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
 import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
+import org.lwjgl.vulkan.VkAllocationCallbacks;
 import org.lwjgl.vulkan.VkApplicationInfo;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
@@ -49,7 +52,7 @@ public class Util {
 	 * @param texts
 	 * @return
 	 */
-	public static ByteBuffer[] makeByteBuffers(String[] texts) {
+	public static ByteBuffer[] makeByteBuffers(String... texts) {
 		ByteBuffer[] out = new ByteBuffer[texts.length];
 		
 		for(int i = 0; i < texts.length; i++)
@@ -64,11 +67,12 @@ public class Util {
 	 * @param buffers	- Buffers to be converted into pointer buffer.
 	 * @return			- Pointer buffer that points to given buffers.
 	 */
-	public static PointerBuffer makePointer(ByteBuffer[] buffers) {
+	public static PointerBuffer makePointer(ByteBuffer... buffers) {
 		PointerBuffer pb = memAllocPointer(buffers.length);
 		
 		for(ByteBuffer b : buffers)
 			pb.put(b);
+		
 		pb.flip();
 		
 		return pb;
@@ -79,7 +83,7 @@ public class Util {
 	 * <p>Frees contents of buffers.</p>
 	 * @param buffers	- Buffers to free.
 	 */
-	public static void freeBuffers(Buffer...buffers) {
+	public static void freeBuffers(Buffer... buffers) {
 		for(Buffer bb : buffers)
 			memFree(bb);
 	}
@@ -288,6 +292,76 @@ public class Util {
 		long queueHandle = pQueue.get(0);
 		memFree(pQueue);
 		return new VkQueue(queueHandle, device);
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Obtains best compatible memory type.
+	 * </p>
+	 * @param memoryProperties		- Memory properties from physical device.
+	 * @param typeBits				- Memory requirements.
+	 * @param flags					- Flags that memory type should contain.
+	 * @return						- Index of suitable memory type.
+	 */
+	public static int getMemoryTypeFromProperties(VkPhysicalDeviceMemoryProperties memoryProperties, int typeBits, int flags) {		
+		for(int i = 0; i < memoryProperties.memoryTypeCount(); i++) {
+			if((typeBits&1) > 0) {
+				if((memoryProperties.memoryTypes(i).propertyFlags() & flags) == flags)
+					return i;
+			}
+			typeBits >>= 1;
+		}
+		return -1;
+	}
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Obtains best compatible memory type.
+	 * </p>
+	 * @param physicalDevice		- Valid physical device.
+	 * @param memoryRequirements	- Memory requirements.
+	 * @param flags					- Flags that memory type should contain.
+	 * @return						- Index of suitable memory type.
+	 */
+	public static int getMemoryTypeFromProperties(PhysicalDevice physicalDevice, VkMemoryRequirements memoryRequirements, int flags) {
+		return getMemoryTypeFromProperties(physicalDevice.memoryProperties, memoryRequirements.memoryTypeBits(), flags);
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Allocates and then binds image memory.
+	 * </p>
+	 * @param physicalDevice	- Valid physical device.
+	 * @param device			- Valid <b>VkDevice</b>.
+	 * @param pAllocator		- Valid allocator or <b>null</b>.
+	 * @param image				- Image handle.
+	 * @param memoryTypeFlags	- Flags for memory type.
+	 * @param offset			- Offset for binding memory.
+	 * @return					- pointer to <b>VkMemory</b> object.
+	 */
+	public static long allocAndBindImageMemory(PhysicalDevice physicalDevice, VkDevice device, VkAllocationCallbacks pAllocator, long image, int memoryTypeFlags, int offset) {
+		VkMemoryRequirements pMemoryRequirements = VkMemoryRequirements.calloc();
+		vkGetImageMemoryRequirements(device, image, pMemoryRequirements);
+		VkMemoryAllocateInfo memAllocInfo = VkMemoryAllocateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+				.pNext(NULL)
+				.allocationSize(pMemoryRequirements.size())
+				.memoryTypeIndex(Util.getMemoryTypeFromProperties(physicalDevice, pMemoryRequirements, memoryTypeFlags));
+		
+		LongBuffer pMemory = memAllocLong(1);
+		int err = vkAllocateMemory(device, memAllocInfo, pAllocator, pMemory);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to allocate memory: " + Util.translateVulkanError(err));
+		long memory = pMemory.get(0);
+		memFree(pMemory);		
+		
+		err = vkBindImageMemory(device, image, memory, offset);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to bind memory:" + Util.translateVulkanError(err));
+		
+		return memory;
 	}
 	
 	/**
