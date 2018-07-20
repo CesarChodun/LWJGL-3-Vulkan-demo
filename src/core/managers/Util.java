@@ -33,6 +33,7 @@ import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkAllocationCallbacks;
 import org.lwjgl.vulkan.VkApplicationInfo;
+import org.lwjgl.vulkan.VkBufferCreateInfo;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
 import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
@@ -109,6 +110,25 @@ public class Util {
 		 
 		 return false;
 	 }
+	 
+	 /**
+		 * <h5>Description:</h5>
+		 * <p>
+		 * 			Returns memory type that meets requirements.
+		 * </p>
+		 * @param memoryProperties	- Memory properties.
+		 * @param bits				- Interesting indices.
+		 * @param properties		- Properties that memory type should meet.
+		 * @return					- Returns memory type index that meets requirements or <b>-1</b> if none were found.
+		 */
+		 public static int getMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties, int bits, int properties) {
+			 for(int i = 0; i < 32; i++) 
+				 if((bits & (1<<i)) > 0)
+					 if((memoryProperties.memoryTypes(i).propertyFlags() & properties) == properties)
+						 return i;
+			 
+			 return -1;
+		 }
 	 
 	 /**
 	     * <h5>Description:</h5>
@@ -362,6 +382,62 @@ public class Util {
 			throw new AssertionError("Failed to bind memory:" + Util.translateVulkanError(err));
 		
 		return memory;
+	}
+	
+	public static long createBufferData(LogicalDevice device, VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties, ByteBuffer data, int dataSize, int bufferUsage, int sharingMode) {
+		
+		
+		VkBufferCreateInfo bufferCreateInfo = VkBufferCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.usage(bufferUsage)
+				.size(dataSize)
+				.pQueueFamilyIndices(null)
+				.sharingMode(sharingMode);
+		
+		LongBuffer pBuffer = memAllocLong(1);
+		int err = vkCreateBuffer(device, bufferCreateInfo, null, pBuffer);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to create buffer: " + Util.translateVulkanError(err));
+		long buffer = pBuffer.get(0);
+		memFree(pBuffer);
+		
+		
+		VkMemoryRequirements memoryRequirements = VkMemoryRequirements.calloc();
+		vkGetBufferMemoryRequirements(device, buffer, memoryRequirements);
+
+		VkMemoryAllocateInfo memAlloc = VkMemoryAllocateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+				.pNext(NULL)
+				.allocationSize(memoryRequirements.size())
+				.memoryTypeIndex(Util.getMemoryType(physicalDeviceMemoryProperties, memoryRequirements.memoryTypeBits(), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+		
+		LongBuffer pMemory = memAllocLong(1);
+		err = vkAllocateMemory(device, memAlloc, null, pMemory);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to allocate memory: " + Util.translateVulkanError(err));
+		long memory = pMemory.get(0);
+		memFree(pMemory);
+		
+		PointerBuffer ppData = memAllocPointer(1);
+		err = vkMapMemory(device, memory, 0, memAlloc.allocationSize(), 0, ppData);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to map memory: " + Util.translateVulkanError(err));
+		long pData = ppData.get(0);
+		
+		memCopy(memAddress(data), pData, data.remaining());
+		
+		vkUnmapMemory(device, memory);
+		
+		err = vkBindBufferMemory(device, buffer, memory, 0);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to bind buffer memory: " + Util.translateVulkanError(err));
+		
+		memFree(ppData);
+		bufferCreateInfo.free();
+		
+		return buffer;
 	}
 	
 	/**
@@ -688,7 +764,7 @@ public class Util {
 		if(err >= 0)
 			return errorMessages[err];
 		//Error codes:
-		if(err <= 1000000)
+		if(err <= -1000000)
 			return "Error code: " + err;
 		return errorMessages[5 - err];
 	}
