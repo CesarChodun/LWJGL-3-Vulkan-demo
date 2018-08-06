@@ -47,6 +47,7 @@ import org.lwjgl.vulkan.VkRect2D;
 import org.lwjgl.vulkan.VkRenderPassBeginInfo;
 import org.lwjgl.vulkan.VkRenderPassCreateInfo;
 import org.lwjgl.vulkan.VkSemaphoreCreateInfo;
+import org.lwjgl.vulkan.VkStencilOpState;
 import org.lwjgl.vulkan.VkSubmitInfo;
 import org.lwjgl.vulkan.VkSubpassDescription;
 import org.lwjgl.vulkan.VkVertexInputAttributeDescription;
@@ -66,6 +67,8 @@ import core.employees.Window;
 import core.managers.EngineVersioning;
 import core.managers.HardwareManager;
 import core.managers.Util;
+import utilities.managers.Evaluator.Judge;
+import utilities.storage.StorageManager;
 
 /**
  * <h5>Description:</h5>
@@ -97,7 +100,7 @@ public class PrimitiveDemo {
 		 VkPipelineVertexInputStateCreateInfo createInfo;
 	 }
 	 
-	 private static Vertices createVertices(VkPhysicalDeviceMemoryProperties logicalDeviceMemoryProperties, VkDevice logicalDevice) {
+	 private static Vertices createVertices(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties, VkDevice logicalDevice) {
 		 ByteBuffer vertexBuffer;
 		 if(quad)
 			 vertexBuffer = memAlloc(6*2*4);
@@ -144,7 +147,7 @@ public class PrimitiveDemo {
 		 vkGetBufferMemoryRequirements(logicalDevice, verticesBuffer, memReqs);
 		 memAlloc.allocationSize(memReqs.size());
 		 IntBuffer memoryTypeIndex = memAllocInt(1);
-		 if(!Util.getMemoryType(logicalDeviceMemoryProperties, memReqs.memoryTypeBits(), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, memoryTypeIndex))
+		 if(!Util.getMemoryType(physicalDeviceMemoryProperties, memReqs.memoryTypeBits(), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, memoryTypeIndex))
 			 throw new AssertionError("Failed to obtain memry type.");
 		 memAlloc.memoryTypeIndex(memoryTypeIndex.get(0));
 		 memFree(memoryTypeIndex);
@@ -406,7 +409,7 @@ public class PrimitiveDemo {
 			presentModeHierarchy[1] = VK_PRESENT_MODE_IMMEDIATE_KHR;
 			presentModeHierarchy[2] = VK_PRESENT_MODE_FIFO_KHR;
 			
-			swapchain.recreateSwapchain(logicalDevice, physicalDevice, surface, newWidth, newHeight, presentModeHierarchy, colorFormatAndSpace);
+			swapchain.recreateSwapchain(logicalDevice, physicalDevice, surface, newWidth, newHeight, presentModeHierarchy, colorFormatAndSpace, 0, 0);
 			
 			for(int i = 0; i < swapchain.images.length; i++) 
 				imageBarrier(commandBuffer, swapchain.images[i], VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
@@ -431,23 +434,6 @@ public class PrimitiveDemo {
 			swapchain.createImageViews(logicalDevice, colorAttachmentView);
 			
 			return swapchain;
-		}
-		
-		private static void submitCommandBuffer(VkQueue queue, VkCommandBuffer commandBuffer) {
-			if(commandBuffer == null || commandBuffer.address() == NULL)
-				return;
-			
-			VkSubmitInfo submitInfo = VkSubmitInfo.calloc()
-					.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO);
-			PointerBuffer pCommandBuffer = memAllocPointer(1)
-					.put(commandBuffer)
-					.flip();
-			submitInfo.pCommandBuffers(pCommandBuffer);
-			int err = vkQueueSubmit(queue, submitInfo, 0);
-			memFree(pCommandBuffer);
-			submitInfo.free();
-			if(err != VK_SUCCESS)
-				throw new AssertionError("Failed to submit command buffer: " + Util.translateVulkanError(err));
 		}
 		
 		private static long[] createFramebuffers(VkDevice logicalDevice, Swapchain swapchain, long renderPass) {
@@ -655,7 +641,7 @@ public class PrimitiveDemo {
 			if(err != VK_SUCCESS)
 				throw new AssertionError("Failed to end command buffer: " + Util.translateVulkanError(err));
 			
-			submitCommandBuffer(queue, commandBuffer);
+			Util.submitCommandBuffers(queue, 0, commandBuffer);
 		}
 
 		static Swapchain swapchain = null;
@@ -682,7 +668,7 @@ public class PrimitiveDemo {
 				if(err != VK_SUCCESS)
 					throw new AssertionError("Failed to create new swapchain: " + Util.translateVulkanError(err));
 				
-				submitCommandBuffer(queue, setupCommandBuffer);
+				Util.submitCommandBuffers(queue, 0, setupCommandBuffer);
 				vkQueueWaitIdle(queue);
 				
 				if(framebuffers != null)
@@ -709,6 +695,167 @@ public class PrimitiveDemo {
 		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	}
+	
+	public static long createPipeline2(VkDevice device, long renderPass, VkPipelineVertexInputStateCreateInfo vi) {
+		//Dynamic states
+		IntBuffer buf = memAllocInt(2);
+		buf.put(VK_DYNAMIC_STATE_VIEWPORT).put(VK_DYNAMIC_STATE_SCISSOR).flip();
+		
+		VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = VkPipelineDynamicStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.pDynamicStates(buf);//TODO: check that
+		
+		//Vertex input state
+//		VkPipelineVertexInputStateCreateInfo vi = VkPipelineVertexInputStateCreateInfo.calloc()
+//				.sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+//				.pNext(NULL)
+//				.flags(0)
+//				.pVertexBindingDescriptions(vertexBinding)
+//				.pVertexAttributeDescriptions(vertexAttribute);
+		
+		VkPipelineInputAssemblyStateCreateInfo ia = VkPipelineInputAssemblyStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.primitiveRestartEnable(false)
+				.topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+		
+		VkPipelineRasterizationStateCreateInfo rs = VkPipelineRasterizationStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.polygonMode(VK_POLYGON_MODE_FILL)
+				.cullMode(VK_CULL_MODE_NONE)//TODO change back or front
+				.frontFace(VK_FRONT_FACE_CLOCKWISE)
+				.depthClampEnable(false)
+				.rasterizerDiscardEnable(false)
+				.depthBiasEnable(false)
+				.depthBiasConstantFactor(0)
+				.depthBiasClamp(0)
+				.depthBiasSlopeFactor(0)
+				.lineWidth(1.0f);
+		
+		// Pipeline color blende state
+		
+		VkPipelineColorBlendAttachmentState.Buffer attachmentState = VkPipelineColorBlendAttachmentState.calloc(1)
+				.colorWriteMask(0xF)
+				.blendEnable(false)
+				.alphaBlendOp(VK_BLEND_OP_ADD)
+				.colorBlendOp(VK_BLEND_OP_ADD)
+				.srcColorBlendFactor(VK_BLEND_FACTOR_ZERO)
+				.dstColorBlendFactor(VK_BLEND_FACTOR_ZERO)
+				.srcAlphaBlendFactor(VK_BLEND_FACTOR_ZERO)
+				.dstAlphaBlendFactor(VK_BLEND_FACTOR_ZERO);
+		
+		FloatBuffer blendConstants = memAllocFloat(4);
+		blendConstants.put(1.0f);//.put(1.0f).put(1.0f).put(1.0f);
+		
+		VkPipelineColorBlendStateCreateInfo cb = VkPipelineColorBlendStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.pAttachments(attachmentState)
+				.logicOpEnable(false)
+				.logicOp(VK_LOGIC_OP_NO_OP)
+				.blendConstants(blendConstants);
+		
+		// Pipeline viewport state
+		VkPipelineViewportStateCreateInfo vp = VkPipelineViewportStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.viewportCount(1)
+				.scissorCount(1)
+				.pScissors(null)
+				.pViewports(null);
+		
+		//Depth buffer
+		VkStencilOpState stencilOP = VkStencilOpState.calloc()
+				.failOp(VK_STENCIL_OP_KEEP)
+				.passOp(VK_STENCIL_OP_KEEP)
+				.compareOp(VK_COMPARE_OP_ALWAYS)
+				.compareMask(0)
+				.reference(0)
+				.depthFailOp(VK_STENCIL_OP_KEEP)
+				.writeMask(0);
+		
+		VkPipelineDepthStencilStateCreateInfo ds = VkPipelineDepthStencilStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.depthTestEnable(false)
+				.depthWriteEnable(false)
+				.depthCompareOp(VK_COMPARE_OP_ALWAYS)
+				.depthBoundsTestEnable(false)
+				.minDepthBounds(0)
+				.maxDepthBounds(0)
+				.stencilTestEnable(false)
+				.back(stencilOP)
+				.front(stencilOP);
+		
+		//Multisampling
+		VkPipelineMultisampleStateCreateInfo ms = VkPipelineMultisampleStateCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.pSampleMask(null)
+				.rasterizationSamples(VK_SAMPLE_COUNT_1_BIT)
+				.sampleShadingEnable(false)
+				.alphaToCoverageEnable(false)
+				.alphaToOneEnable(false)
+				.minSampleShading(0.0f);
+		
+		
+		VkPipelineShaderStageCreateInfo.Buffer stages = VkPipelineShaderStageCreateInfo.calloc(2);
+		 stages.get(0).set(Util.createShaderStage(Util.createShaderModule(logicalDevice, new File("storage/res/shaders/triangle.vert.spv")), VK_SHADER_STAGE_VERTEX_BIT, "main"));
+		 stages.get(1).set(Util.createShaderStage(Util.createShaderModule(logicalDevice, new File("storage/res/shaders/triangle.frag.spv")), VK_SHADER_STAGE_FRAGMENT_BIT, "main"));
+		 // Create the pipeline layout that is used to generate the rendering pipelines that
+	     // are based on this descriptor set layout
+		 VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
+				 .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
+				 .pNext(NULL)
+				 .pSetLayouts(null);
+		 
+		 LongBuffer pLayout = memAllocLong(1);
+		 int err = vkCreatePipelineLayout(logicalDevice, pipelineLayoutCreateInfo, null, pLayout);
+		 if(err != VK_SUCCESS)
+			 throw new AssertionError("Failed to create pipeline layout: " + Util.translateVulkanError(err));
+		 long layout = pLayout.get(0);
+		 memFree(pLayout);
+		 pipelineLayoutCreateInfo.free();
+		 
+		//Create graphics pipeline
+		VkGraphicsPipelineCreateInfo.Buffer pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
+				.sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.layout(layout)
+				.renderPass(renderPass)
+				.basePipelineHandle(VK_NULL_HANDLE)
+				.basePipelineIndex(0)
+				.pVertexInputState(vi)
+				.pInputAssemblyState(ia)
+				.pRasterizationState(rs)
+				.pColorBlendState(cb)
+				.pTessellationState(null)
+				.pMultisampleState(ms)
+				.pDynamicState(dynamicStateCreateInfo)
+				.pViewportState(vp)
+				.pDepthStencilState(ds)
+				.pStages(stages)
+				.subpass(0);
+		
+		LongBuffer pGraphicsPipeline = memAllocLong(1);
+		err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, pipelineCreateInfo, null, pGraphicsPipeline);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to create graphics pipeline: " + Util.translateVulkanError(err));
+		long graphicsPipeline = pGraphicsPipeline.get(0);
+		memFree(pGraphicsPipeline);
+		
+		return graphicsPipeline;
+	}
 		
 	/**
 	 * <h5>Description:</h5>
@@ -722,11 +869,20 @@ public class PrimitiveDemo {
 		HardwareManager.initialize();
 		HardwareManager.createDefaultInstance();
 		HardwareManager.enumeratePhysicalDevices();
-		
-		if(HardwareManager.devices.length == 0)
-			throw new AssertionError("Failed to detect any device that supports vulkan!");
-		
-		physicalDevice = HardwareManager.devices[0];
+		physicalDevice = HardwareManager.chosePhysicalDevice(new Judge<PhysicalDevice>() {
+
+			@Override
+			public int calculate(PhysicalDevice object) {
+				int score = 10;
+				
+				if(object.properties.deviceType() == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+					score += 100;
+				else if(object.properties.deviceType() == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+					score += 1000;
+				
+				return score;
+			}});
+		physicalDevice.acquireProperties(HardwareManager.getInstance());
 		
 		String[] extensions = new String[1];
 		extensions[0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
@@ -736,7 +892,6 @@ public class PrimitiveDemo {
 		validationLayers[1] = "VK_LAYER_LUNARG_object_tracker";
 		
 		logicalDevice = Util.createLogicalDevice(physicalDevice, VK_QUEUE_GRAPHICS_BIT, validationLayers, extensions);
-		
 		
 		window = new Window(0, 0, width, height, "Hello triangle!");
 		
@@ -760,9 +915,9 @@ public class PrimitiveDemo {
 			throw new AssertionError("Could not obtain surface pointer: " + Util.translateVulkanError(err));
 		memFree(lb);
 		
-		ColorFormatAndSpace tFormat = Util.getNextSurfaceFormat(physicalDevice, surface, 0, VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);/*getColorFormatAndSpace(physicalDevice, surface, VK_FORMAT_R8G8B8_UNORM);*/
+		ColorFormatAndSpace tFormat = Util.getNextColorFormatAndSpace(0, physicalDevice, surface, VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);/*getColorFormatAndSpace(physicalDevice, surface, VK_FORMAT_R8G8B8_UNORM);*/
 		if(tFormat == null)
-			tFormat = Util.getNextSurfaceFormat(physicalDevice, surface, 0, -1, -1);
+			tFormat = Util.getNextColorFormatAndSpace(0, physicalDevice, surface, -1, -1);
 		final ColorFormatAndSpace format = tFormat;
 		
 		final long commandPool = Util.createCommandPool(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
@@ -773,7 +928,7 @@ public class PrimitiveDemo {
 		long renderPass = createRenderPass(logicalDevice, format.colorFormat);
 		long renderCommandPool = Util.createCommandPool(logicalDevice, logicalDevice.getGraphicsQueueFamilyIndex(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 		Vertices vertices = createVertices(physicalDevice.memoryProperties, logicalDevice);
-		final long pipeline = createPipeline(logicalDevice, renderPass, vertices.createInfo);
+		final long pipeline = createPipeline2(logicalDevice, renderPass, vertices.createInfo);
         
 		window.setVisible(true);
         
@@ -790,6 +945,10 @@ public class PrimitiveDemo {
                 .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
                 .pNext(NULL)
                 .flags(0);
+        
+        err = vkCreateSemaphore(logicalDevice, semaphoreCreateInfo, null, pRenderCompleteSemaphore);
+        if(err != VK_SUCCESS)
+        	throw new AssertionError("Failed to create semaphore: " + Util.translateVulkanError(err));
 
         // Info struct to submit a command buffer which will wait on the semaphore
         IntBuffer pWaitDstStageMask = memAllocInt(1);
@@ -847,7 +1006,8 @@ public class PrimitiveDemo {
 			
 			// Get next image from the swap chain (back/front buffer).
             // This will setup the imageAquiredSemaphore to be signalled when the operation is complete
-			err = vkAcquireNextImageKHR(logicalDevice, swapchain.swapchainHandle, UINT64_MAX, pImageAcquiredSemaphore.get(0), VK_NULL_HANDLE, pImageIndex);
+            long semtest = pImageAcquiredSemaphore.get(0);
+			err = vkAcquireNextImageKHR(logicalDevice, swapchain.swapchainHandle, UINT64_MAX, semtest, VK_NULL_HANDLE, pImageIndex);
 			currentBuffer = pImageIndex.get(0);
 			if(err != VK_SUCCESS)
 				throw new AssertionError("Failed to acquire next swapchain image: " + Util.translateVulkanError(err));
@@ -892,7 +1052,7 @@ public class PrimitiveDemo {
 	 * <p>Destroys contents generated by <code>init()</code> method.</p>
 	 */
 	private static void destroy() {
-		physicalDevice.destroyProperties();
+		physicalDevice.freeProperties();
 		vkDestroyDevice(logicalDevice, null);
 		EngineVersioning.destroy();
 		
@@ -903,6 +1063,8 @@ public class PrimitiveDemo {
 	}
 	
 	public static void main(String[] args) {
+
+		StorageManager.transferInfo();
 		init();
 		destroy();
 	}
