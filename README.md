@@ -18,6 +18,8 @@ https://www.lwjgl.org/. </p>
 
 <h2>Gallery</h2>
 
+![triangle_git](other_resources/suzanne.jpg)
+
 ![triangle_git](other_resources/triangle_git.jpg)
 
 ![triangle_git](other_resources/quad_git.jpg)
