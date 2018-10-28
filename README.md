@@ -1,11 +1,24 @@
 # JVEngine
+<h2>Project resumed!</h2>
+<p>After 4 months the project is finally resumed! I appologise for such a huge break, but I had to improved my knowledge of <b>Vulkan</b> before proceeding with developement of JVEngine. Now I'm ready to take this project to the next level, or at least to the new version ;)</p>
 <h2>Goal</h2>
-<p>The aim of the project is to create simple <b>engine</b>. Which would enable user to create <b>Vulkan</b> driven applications easier then using <b>Vulkan</b> alone.</p>
+<p>The aim of the project is to create simple <b>game engine</b> that is entirely based on <b>Vulkan</b> api.</p>
 <h2>Requirements</h2>
-<p><b>Engine</b> is written in <b>JAVA</b> and is using <b>LWJGL 3</b>.</p>
-<h2>Version 0.1.1</h2>
-<p>This version of <b>engine</b>  is currently in alpha stage. So it is <b>NOT</b> suitable for <b>ANY</b> purposes beside <i><b>testing</b></i> and <b><i>internal use</i></b>.</p>
+<p><b>Engine</b> is written in <b>Java</b> and is using <b>LWJGL 3</b>. So before you start you should install <b>Java</b> and set up required <b>LWJGL 3</b> libraries(see <b>Required LWJGL libraries</b> bellow).</p>
+
+<h2>Version 0.1.2</h2>
+<p>JVEngine is currently in an alfa stage and therefor many functionalities are not added yet. But I highly encourage people new to <b>Vulkan</b> to take a closer look at(at least) some functionalities of JVEngine. For example choosing the right physical device is often very confusing for many beginners, and JVEngine has this function already implemented!</p>
+
+<h2>Required LWJGL libraries</h2>
+<p> It is highly recomended to download default "Minimal Vulkan" preset with JOML selected. You can find it on this website:
+https://www.lwjgl.org/. </p>
+
+<h2>Contribute!</h2>
+<p>Developing fully functional game engine is challenging enough for a team of full time developers. Not to say for a guy that is pursuing bechelor's degree at the same time(and hase some other projects too). So any amount of help is more then welcome!</p>
+
 <h2>Gallery</h2>
+
+![triangle_git](other_resources/suzanne.jpg)
 
 ![triangle_git](other_resources/triangle_git.jpg)
 
