@@ -19,6 +19,7 @@ import core.employees.ColorFormatAndSpace;
 import core.employees.LogicalDevice;
 
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo;
+import org.lwjgl.vulkan.VkFenceCreateInfo;
 import org.lwjgl.vulkan.VkInstanceCreateInfo;
 import org.lwjgl.vulkan.VkMemoryAllocateInfo;
 import org.lwjgl.vulkan.VkMemoryRequirements;
@@ -26,6 +27,7 @@ import org.lwjgl.vulkan.VkPhysicalDevice;
 import org.lwjgl.vulkan.VkPhysicalDeviceMemoryProperties;
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo;
 import org.lwjgl.vulkan.VkQueue;
+import org.lwjgl.vulkan.VkSemaphoreCreateInfo;
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo;
 import org.lwjgl.vulkan.VkSubmitInfo;
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR;
@@ -33,9 +35,12 @@ import org.lwjgl.vulkan.VkSurfaceFormatKHR;
 import org.lwjgl.vulkan.VkDeviceCreateInfo;
 import org.lwjgl.vulkan.VkAllocationCallbacks;
 import org.lwjgl.vulkan.VkApplicationInfo;
+import org.lwjgl.vulkan.VkBufferCreateInfo;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo;
 import org.lwjgl.vulkan.VkCommandPoolCreateInfo;
+import org.lwjgl.vulkan.VkDescriptorSetLayoutBinding;
+import org.lwjgl.vulkan.VkDescriptorSetLayoutCreateInfo;
 import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkInstance;
 import org.eclipse.jdt.annotation.Nullable;
@@ -46,6 +51,23 @@ import org.lwjgl.PointerBuffer;
  *
  */
 public class Util {
+	
+	private static LongBuffer longBuffer = memAllocLong(1);
+	
+	
+	public static class GPUBuffer{
+		public long buffer;
+		public long memory;
+		public long allocationSize;
+		
+		public GPUBuffer() {}
+		
+		public GPUBuffer(long buffer, long memory, long allocationSize) {
+			this.buffer = buffer;
+			this.memory = memory;
+			this.allocationSize = allocationSize;
+		}
+	};
 	
 	/**
 	 * 
@@ -111,6 +133,25 @@ public class Util {
 	 }
 	 
 	 /**
+		 * <h5>Description:</h5>
+		 * <p>
+		 * 			Returns memory type that meets requirements.
+		 * </p>
+		 * @param memoryProperties	- Memory properties.
+		 * @param bits				- Interesting indices.
+		 * @param properties		- Properties that memory type should meet.
+		 * @return					- Returns memory type index that meets requirements or <b>-1</b> if none were found.
+		 */
+		 public static int getMemoryType(VkPhysicalDeviceMemoryProperties memoryProperties, int bits, int properties) {
+			 for(int i = 0; i < 32; i++) 
+				 if((bits & (1<<i)) > 0)
+					 if((memoryProperties.memoryTypes(i).propertyFlags() & properties) == properties)
+						 return i;
+			 
+			 return -1;
+		 }
+	 
+	 /**
 	     * <h5>Description:</h5>
 		 * <p>
 		 * 		Obtains <b><i><code>VkSurfaceCapabilitiesKHR</code></i></b>.
@@ -154,6 +195,8 @@ public class Util {
 		 return out;
 	 }
 	
+	private static PointerBuffer pCommandBuffers = memAllocPointer(1);
+	
 	/**
 	 * <h5>Description:</h5>
 	 * <p>
@@ -165,7 +208,6 @@ public class Util {
 	 */
 	public static void submitCommandBuffers(VkQueue queue, long fence, VkCommandBuffer... commandBuffers) {
 		
-		PointerBuffer pCommandBuffers = memAllocPointer(commandBuffers.length);
 		for(int i = 0; i < commandBuffers.length; i++) {
 			if(commandBuffers == null || commandBuffers[i].address() == NULL)
 				throw new AssertionError("Command buffer is corrupted.");
@@ -362,6 +404,171 @@ public class Util {
 			throw new AssertionError("Failed to bind memory:" + Util.translateVulkanError(err));
 		
 		return memory;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Allocates buffer memory for future use.
+	 * </p>
+	 * @param device							- Logical device
+	 * @param physicalDeviceMemoryProperties	- Physical device
+	 * @param buferSize							- Buffer size
+	 * @param bufferUsage						- Buffer usage 
+	 * @param sharingMode						- Sharing mode
+	 * @return									- returns GPUBuffer allocated from given logical device.
+	 */
+	public static GPUBuffer allocateBufferMemoryGPU(LogicalDevice device, VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties, int buferSize, int bufferUsage, int sharingMode) {
+		GPUBuffer ans = new GPUBuffer();
+		
+		VkBufferCreateInfo bufferCreateInfo = VkBufferCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+				.pNext(NULL)
+				.flags(0)
+				.usage(bufferUsage)
+				.size(buferSize)
+				.pQueueFamilyIndices(null)
+				.sharingMode(sharingMode);
+		
+		LongBuffer pBuffer = memAllocLong(1);
+		int err = vkCreateBuffer(device, bufferCreateInfo, null, pBuffer);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to create buffer: " + Util.translateVulkanError(err));
+		ans.buffer = pBuffer.get(0);
+		memFree(pBuffer);
+		
+		VkMemoryRequirements memoryRequirements = VkMemoryRequirements.calloc();
+		vkGetBufferMemoryRequirements(device, ans.buffer, memoryRequirements);
+		ans.allocationSize = memoryRequirements.size();
+
+		VkMemoryAllocateInfo memAlloc = VkMemoryAllocateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+				.pNext(NULL)
+				.allocationSize(ans.allocationSize)
+				.memoryTypeIndex(Util.getMemoryType(physicalDeviceMemoryProperties, memoryRequirements.memoryTypeBits(), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
+		
+		LongBuffer pMemory = memAllocLong(1);
+		err = vkAllocateMemory(device, memAlloc, null, pMemory);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to allocate memory: " + Util.translateVulkanError(err));
+		ans.memory = pMemory.get(0);
+		memFree(pMemory);
+		
+
+		memoryRequirements.free();
+		memAlloc.free();
+		
+		return ans;
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Binds data to gpu buffer.
+	 * </p>
+	 * @param device	- Logical device
+	 * @param buff		- Destination gpu buffer
+	 * @param data		- Source buffer
+	 */
+	public static void bindBufferMemoryGPU(LogicalDevice device, GPUBuffer buff, ByteBuffer data) {
+		if(device == null)
+			System.err.println("Fuck!!!!");
+		PointerBuffer ppData = memAllocPointer(1);
+		int err = vkMapMemory(device, buff.memory, 0, buff.allocationSize, 0, ppData);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to map memory: " + Util.translateVulkanError(err));
+		long pData = ppData.get(0);
+		memFree(ppData);
+		
+		memCopy(memAddress(data), pData, data.remaining());
+		
+		vkUnmapMemory(device, buff.memory);
+		
+		err = vkBindBufferMemory(device, buff.buffer, buff.memory, 0);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to bind buffer memory: " + Util.translateVulkanError(err));
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates semaphore.
+	 * </p>
+	 * @param device 	- Logical device
+	 * @param ci		- Semaphore create info
+	 * @param alloc		- Allocation callbacks
+	 * @return			- Handle to the semaphore
+	 */
+	public static long createSemaphore(VkDevice device, VkSemaphoreCreateInfo ci, VkAllocationCallbacks alloc) {		
+		int err = vkCreateSemaphore(device, ci, alloc, longBuffer);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to acquire semaphore: " + translateVulkanError(err));
+		
+		return longBuffer.get(0);
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates fence.
+	 * </p>
+	 * @param device	- Logical device
+	 * @param ci		- Fence create info
+	 * @param alloc		- Allocation callbacks
+	 * @return			- Handle to the fence
+	 */
+	public static long createFence(VkDevice device, VkFenceCreateInfo ci, VkAllocationCallbacks alloc) {
+		int err = vkCreateFence(device, ci, null, longBuffer);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Failed to acquire semaphore: " + translateVulkanError(err));
+		
+		return longBuffer.get(0);
+	}
+	
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Allocates gpu visible buffer based on given <i><b>data</b></i> buffer.
+	 * </p>
+	 * @param device							- Logical device
+	 * @param physicalDeviceMemoryProperties	- Memory properties
+	 * @param data								- <code>ByteBuffer</code> that contains data
+	 * @param dataSize							- Size of the data
+	 * @param bufferUsage						- Buffer usage
+	 * @param sharingMode						- Sharing mode
+	 * @return									- Handle to the gpu visible buffer
+	 */
+	public static long createBufferData(LogicalDevice device, VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties, ByteBuffer data, int dataSize, int bufferUsage, int sharingMode) {
+		
+		GPUBuffer ans = allocateBufferMemoryGPU(device, physicalDeviceMemoryProperties, dataSize, bufferUsage, sharingMode);
+		bindBufferMemoryGPU(device, ans, data);
+		
+		return ans.buffer;
+	}
+
+	/**
+	 * <h5>Description:</h5>
+	 * <p>
+	 * 		Creates descriptor set layout.
+	 * </p>
+	 * @param device		- Logical device
+	 * @param layoutBinding	- Layout binding
+	 * @return				- Handle to descriptor set layout
+	 */
+	public static long createDescriptorSetLayout(VkDevice device, VkDescriptorSetLayoutBinding.Buffer layoutBinding) {
+		VkDescriptorSetLayoutCreateInfo layoutCreateInfo = VkDescriptorSetLayoutCreateInfo.calloc()
+				.sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
+				.pNext(NULL)
+				.pBindings(layoutBinding);
+		
+		LongBuffer pSetLayout = memAllocLong(1);
+		int err = vkCreateDescriptorSetLayout(device, layoutCreateInfo, null, pSetLayout);
+		if(err != VK_SUCCESS)
+			throw new AssertionError("Filed to create descriptor set layout: " + Util.translateVulkanError(err));
+		long ans = pSetLayout.get(0);
+		memFree(pSetLayout);
+		layoutCreateInfo.free();
+		return ans;
 	}
 	
 	/**
@@ -688,7 +895,7 @@ public class Util {
 		if(err >= 0)
 			return errorMessages[err];
 		//Error codes:
-		if(err <= 1000000)
+		if(err <= -1000000)
 			return "Error code: " + err;
 		return errorMessages[5 - err];
 	}
