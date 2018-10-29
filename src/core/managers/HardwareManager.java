@@ -13,8 +13,8 @@ import org.lwjgl.vulkan.VkApplicationInfo;
 import org.lwjgl.vulkan.VkInstance;
 
 import core.employees.PhysicalDevice;
-import utilities.managers.Evaluator;
-import utilities.managers.Evaluator.Judge;
+import core.employees.Evaluator;
+import core.employees.Evaluator.Judge;
 
 import org.lwjgl.PointerBuffer;
 
@@ -91,7 +91,7 @@ public class HardwareManager {
 			devices[i].freeProperties();
 		}
 		
-		PhysicalDevice pdev = eval.getBest();
+		PhysicalDevice pdev = eval.getLast();
 		eval.clear();
 		
 		return pdev;
