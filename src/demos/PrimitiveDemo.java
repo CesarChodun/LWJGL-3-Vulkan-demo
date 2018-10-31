@@ -88,7 +88,7 @@ public class PrimitiveDemo {
 	static int width = 800;
 	static int height = 600;
 	
-	static boolean quad = false;
+	static boolean quad = true;
 	
 	static final float rb = 0.9f, gb = 0.9f, bb = 0.9f;
 	 
@@ -729,7 +729,6 @@ public class PrimitiveDemo {
 
 		physicalDevice = HardwareManager.devices[0];
 		physicalDevice.acquireProperties(HardwareManager.getInstance());
-		System.out.println(physicalDevice.properties.deviceNameString());
 		
 		graphicsQueueFamilyIndex = physicalDevice.getNextQueueFamilyIndex(0, VK_QUEUE_GRAPHICS_BIT & VK_QUEUE_TRANSFER_BIT);
 		if(graphicsQueueFamilyIndex == -1)

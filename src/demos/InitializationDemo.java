@@ -38,6 +38,7 @@ public class InitializationDemo {
 		HardwareManager.enumeratePhysicalDevices();
 		
 		physicalDevice = HardwareManager.devices[0];
+		physicalDevice.acquireProperties(HardwareManager.getInstance());
 		
 		String[] extensions = new String[1];
 		extensions[0] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
