@@ -1,7 +1,5 @@
 # JVEngine <img align="right" src = "other_resources/supported_systems.png" width="192" height="64"/> 
 
-<h2>Project resumed!</h2>
-<p>After 4 months the project is finally resumed! I appologise for such a huge break, but I had to improved my knowledge of <b>Vulkan</b> before proceeding with developement of JVEngine. Now I'm ready to take this project to the next level, or at least to the new version ;)</p>
 <h2>Goal</h2>
 <p>The aim of the project is to create simple <b>game engine</b> that is entirely based on <b>Vulkan</b> api.</p>
 <h2>Requirements</h2>
