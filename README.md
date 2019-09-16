@@ -12,6 +12,42 @@
 <p> It is highly recomended to download default "Minimal Vulkan" preset with JOML selected. You can find it on this website:
 https://www.lwjgl.org/. </p>
 
+<h2>Instalation</h2>
+
+ <h3>Prepare your IDE</h3>
+ 
+  * Download and install Vulkan from <a href="www.google.com">this</a> site.
+  * Download required LWJGL libraries("Minimal Vulkan" + JOML) from <a href="TODO">this</a> page.
+  * Create a new project in your IDE.
+  * Add the Vulkan libraries to the project.
+  
+  <h3>Run demo</h3>
+  
+  * Clone the repository.
+  * Transfer files from source("src") to your's project source folder.
+  * Refresh/reopen your IDE to see changes.
+  * Navigate to the desired demo class.
+  * Run the demo.
+  * If you are using Mac OS you might have to add "-XstartOnTheFirstThread" to the VM arguments and then run the demo again.
+  
+ 
+ <h2>Troubleshooting</h2>
+ 
+ There are multiple things that might go wrong during the installation process.
+ First of all you have to determine whether the problem is due to wrong installation or the demo is malfunctioning.
+ 
+  <h3>Installation check #1 </h3>
+ 
+   Run the <a href="https://github.com/CesarChodun/JVEngine/blob/master/src/demos/InitializationDemo.java">InitializationDemo.java</a>. If you can see a window proceed to installation check #2.
+   Otherwise check whether there are any errors preventing you from compiling the code.
+   If so try to remove the libraries from the project and then add them again and recompile the project.
+   Try adding the "-XstartOnFirstThread" argument(or removing it).
+   If the problem is still present go to the section "Issues reporting".
+   
+  <h3>Installation check #2 </h3>
+  
+  TODO(Readme will be updated soon)
+
 <h2>Contribute!</h2>
 <p>Developing fully functional game engine is challenging enough for a team of full time developers. Not to say for a guy that is pursuing bechelor's degree at the same time(and hase some other projects too). So any amount of help is more then welcome!</p>
 
