@@ -79,6 +79,11 @@ public class PrimitiveDemo {
      * This is just -1L, but it is nicer as a symbolic constant.
      */
     private static final long UINT64_MAX = 0xFFFFFFFFFFFFFFFFL;
+    
+    private static final String 
+    		VERTEX_SHADER_FILE = "shaders/triangle.vert.spv",
+    		FRAGMENT_SHADER_FILE = "shaders/triangle.frag.spv";
+    
 	
 	private static Window window;
 	private static PhysicalDevice physicalDevice;
@@ -271,8 +276,8 @@ public class PrimitiveDemo {
 		 
 		 //Load shaders
 		 VkPipelineShaderStageCreateInfo.Buffer stages = VkPipelineShaderStageCreateInfo.calloc(2);
-		 stages.get(0).set(Util.createShaderStage(Util.createShaderModule(logicalDevice, new File("storage/res/shaders/triangle.vert.spv")), VK_SHADER_STAGE_VERTEX_BIT, "main"));
-		 stages.get(1).set(Util.createShaderStage(Util.createShaderModule(logicalDevice, new File("storage/res/shaders/triangle.frag.spv")), VK_SHADER_STAGE_FRAGMENT_BIT, "main"));
+		 stages.get(0).set(Util.createShaderStage(Util.createShaderModule(logicalDevice, new File(VERTEX_SHADER_FILE)), VK_SHADER_STAGE_VERTEX_BIT, "main"));
+		 stages.get(1).set(Util.createShaderStage(Util.createShaderModule(logicalDevice, new File(FRAGMENT_SHADER_FILE)), VK_SHADER_STAGE_FRAGMENT_BIT, "main"));
 		 
 		 // Create the pipeline layout that is used to generate the rendering pipelines that
 	     // are based on this descriptor set layout

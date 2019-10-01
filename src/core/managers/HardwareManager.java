@@ -24,7 +24,7 @@ import org.lwjgl.PointerBuffer;
  */
 public class HardwareManager {
 
-	public static final boolean validation = Boolean.parseBoolean(System.getProperty("vulkan.validation", "false"));
+	public static final boolean validation = Boolean.parseBoolean(System.getProperty("vulkan.validation", "true"));
 	public static final ByteBuffer[] DEFAULT_VALIDATION_LAYERS = {memUTF8("VK_LAYER_LUNARG_standard_validation"), memUTF8("VK_LAYER_LUNARG_object_tracker")};
 	public static final ByteBuffer[] DEFAULT_EXTENSIONS = {memUTF8(VK_KHR_SURFACE_EXTENSION_NAME)};
 	
