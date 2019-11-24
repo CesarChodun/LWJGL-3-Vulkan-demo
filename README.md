@@ -1,15 +1,19 @@
-# JVEngine <img align="right" src = "other_resources/supported_systems.png" width="192" height="64"/> 
+# LWJGL3 Vulkan Demo <img align="right" src = "other_resources/supported_systems.png" width="192" height="64"/> 
 
 <h2>Goal</h2>
-<p>The aim of the project is to create simple <b>game engine</b> that is entirely based on <b>Vulkan</b> api.</p>
+<p>
+ The aim of the project is to create a simple <b>game engine</b> demo that is entirely based on <b>Vulkan</b> api.
+ Hopefully it will be usefull for people learning vulkan from scratch.
+</p>
 <h2>Requirements</h2>
 <p><b>Engine</b> is written in <b>Java</b> and is using <b>LWJGL 3</b>. So before you start you should install <b>Java</b> and set up required <b>LWJGL 3</b> libraries(see <b>Required LWJGL libraries</b> bellow).</p>
 
 <h2>Version 0.1.2</h2>
-<p>JVEngine is currently in an alfa stage and therefor many functionalities are not added yet. But I highly encourage people new to <b>Vulkan</b> to take a closer look at(at least) some functionalities of JVEngine. For example choosing the right physical device is often very confusing for many beginners, and JVEngine has this function already implemented!</p>
+<p>The project has quite a few usefull utilities for working with <b>Vulkan</b>. For example it can choose the right Physical Device for you, and create a queue with either default or custom requirements. </p>
+<p> There are also two demonstration applications inspired by <b>LWJGL</b> Vulkan samples.</p>
 
 <h2>Required LWJGL libraries</h2>
-<p> It is highly recomended to download default "Minimal Vulkan" preset with JOML selected. You can find it on this website:
+<p> "Minimal Vulkan" preset with JOML selected. You can find it on this website:
 https://www.lwjgl.org/. </p>
 
 <h2>Instalation</h2>
